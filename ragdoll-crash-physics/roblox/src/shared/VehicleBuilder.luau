@@ -1,0 +1,303 @@
+--!nonstrict
+-- Builds a vehicle Model from VehicleSpecs (the same data the Blender meshes are made from).
+-- visualOnly = true gives an anchored, constraint-free copy for menu ViewportFrames.
+--
+-- Physics layout of a live vehicle:
+--   Root          invisible box carrying ALL the mass (density derived from spec.mass)
+--   spec parts    Massless, welded to Root; the ones flagged collide are the crash surfaces
+--   WheelCollider frictionless balls welded to Root - the vehicle slides on these and the
+--                 client applies drive / grip forces (VehicleInputController), so handling is
+--                 fully tunable and stable at high speed
+--   Wheel visuals / propellers / rotors: light non-colliding parts on motor hinges
+--   Turret        (tank) separate assembly on a servo hinge
+local Specs = require(script.Parent.VehicleSpecs)
+
+local Builder = {}
+
+local MATERIAL = {
+	body = Enum.Material.SmoothPlastic, glass = Enum.Material.Glass, light = Enum.Material.Neon,
+	neon = Enum.Material.Neon, dark = Enum.Material.SmoothPlastic, metal = Enum.Material.Metal,
+	rubber = Enum.Material.SmoothPlastic,
+}
+local NO_FRICTION = PhysicalProperties.new(0.7, 0, 0, 100, 1)
+local BODY_PROPS = PhysicalProperties.new(0.7, 0.2, 0.15, 1, 1)
+local FEATHER = PhysicalProperties.new(0.01, 0, 0, 1, 1)
+
+local function v3(t)
+	return Vector3.new(t[1], t[2], t[3])
+end
+
+local function axisCFrame(axis: string): CFrame
+	if axis == "y" then
+		return CFrame.Angles(0, 0, math.rad(90))
+	elseif axis == "z" then
+		return CFrame.Angles(0, math.rad(90), 0)
+	end
+	return CFrame.identity
+end
+
+local function makePart(p): BasePart
+	local part: BasePart
+	local size, cf = v3(p.size), CFrame.new(v3(p.pos))
+	if p.shape == "wedge" then
+		part = Instance.new("WedgePart")
+		if p.face == "back" then
+			cf *= CFrame.Angles(0, math.rad(180), 0)
+		end
+	elseif p.shape == "cyl" then
+		local c = Instance.new("Part")
+		c.Shape = Enum.PartType.Cylinder
+		part = c
+		-- Roblox cylinders run along the part's X axis.
+		if p.axis == "y" then
+			size = Vector3.new(size.Y, size.X, size.Z)
+		elseif p.axis == "z" then
+			size = Vector3.new(size.Z, size.Y, size.X)
+		end
+		cf *= axisCFrame(p.axis)
+	else
+		part = Instance.new("Part")
+	end
+	part.Name = p.name
+	part.Size = size
+	part.CFrame = cf
+	part.Color = Color3.fromHex(p.color)
+	part.Material = MATERIAL[p.mat] or Enum.Material.SmoothPlastic
+	part.Transparency = if p.mat == "glass" then 0.45 else 0
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.CanCollide = p.collide
+	part.Massless = true
+	part.CustomPhysicalProperties = if p.mat == "rubber" then NO_FRICTION else BODY_PROPS
+	part.CollisionGroup = "Vehicle"
+	part.CastShadow = math.min(size.X, size.Y, size.Z) > 0.4
+	return part
+end
+
+local function weld(a: BasePart, b: BasePart)
+	local w = Instance.new("WeldConstraint")
+	w.Part0, w.Part1 = a, b
+	w.Parent = b
+end
+
+local function hinge(root: BasePart, part: BasePart, pivot: Vector3, axis: string, name: string): HingeConstraint
+	local a0 = Instance.new("Attachment")
+	a0.Name = name .. "A0"
+	a0.CFrame = root.CFrame:ToObjectSpace(CFrame.new(pivot) * axisCFrame(axis))
+	a0.Parent = root
+	local a1 = Instance.new("Attachment")
+	a1.Name = name .. "A1"
+	a1.CFrame = part.CFrame:ToObjectSpace(CFrame.new(pivot) * axisCFrame(axis))
+	a1.Parent = part
+	local h = Instance.new("HingeConstraint")
+	h.Name = name
+	h.Attachment0, h.Attachment1 = a0, a1
+	h.ActuatorType = Enum.ActuatorType.Motor
+	h.MotorMaxTorque = 1e5
+	h.AngularVelocity = 0
+	h.Parent = root
+	return h
+end
+
+function Builder.getSpec(key: string)
+	return Specs.Vehicles[key]
+end
+
+function Builder.build(key: string, visualOnly: boolean?): Model
+	local spec = Specs.Vehicles[key]
+	assert(spec, "unknown vehicle " .. tostring(key))
+	local model = Instance.new("Model")
+	model.Name = key
+
+	local parts: { [string]: BasePart } = {}
+	local lo, hi = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+	for _, p in spec.parts do
+		local part = makePart(p)
+		parts[p.name] = part
+		if p.collide then
+			local half = v3(p.size) / 2
+			lo, hi = lo:Min(v3(p.pos) - half), hi:Max(v3(p.pos) + half)
+		end
+	end
+	for _, w in spec.wheels do
+		local r = Vector3.new(w.width / 2, w.radius, w.radius)
+		lo, hi = lo:Min(v3(w.pos) - r), hi:Max(v3(w.pos) + r)
+	end
+
+	-- Root: carries the mass, defines the crash-query box.
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = (hi - lo):Max(Vector3.new(2, 1, 2))
+	root.CFrame = CFrame.new((lo + hi) / 2)
+	root.Transparency = 1
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	root.CollisionGroup = "Vehicle"
+	local volume = root.Size.X * root.Size.Y * root.Size.Z
+	root.CustomPhysicalProperties = PhysicalProperties.new(math.clamp(spec.mass / volume, 0.01, 100), 0.2, 0.1, 1, 1)
+	root.PivotOffset = root.CFrame:Inverse() -- model pivot = ground point under the vehicle centre
+	root.Parent = model
+	model.PrimaryPart = root
+
+	local special: { [string]: boolean } = {}
+	for _, sp in spec.spinners or {} do
+		for _, n in sp.parts do
+			special[n] = true
+		end
+	end
+	for _, n in spec.turret or {} do
+		special[n] = true
+	end
+
+	for name, part in parts do
+		part.Parent = model
+		if visualOnly then
+			part.Anchored = true
+		elseif not special[name] then
+			weld(root, part)
+		end
+	end
+
+	-- Wheels
+	for i, w in spec.wheels do
+		local wheel = Instance.new("Part")
+		wheel.Shape = Enum.PartType.Cylinder
+		wheel.Name = "Wheel" .. i
+		wheel.Size = Vector3.new(w.width, w.radius * 2, w.radius * 2)
+		wheel.CFrame = CFrame.new(v3(w.pos))
+		wheel.Color = Color3.fromHex("#17181b")
+		wheel.Material = Enum.Material.SmoothPlastic
+		wheel.CanCollide = false
+		wheel.CollisionGroup = "VehicleDecor"
+		wheel.CustomPhysicalProperties = FEATHER
+		wheel.Parent = model
+		local rim = Instance.new("Part")
+		rim.Shape = Enum.PartType.Cylinder
+		rim.Name = "Rim"
+		rim.Size = Vector3.new(w.width + 0.08, w.radius * 1.15, w.radius * 1.15)
+		rim.CFrame = wheel.CFrame
+		rim.Color = Color3.fromHex("#c9cdd3")
+		rim.Material = Enum.Material.Metal
+		rim.CanCollide = false
+		rim.Massless = true
+		rim.Parent = wheel
+		local spoke = Instance.new("Part") -- a bar across the rim so the spin is visible
+		spoke.Name = "Spoke"
+		spoke.Size = Vector3.new(w.width + 0.14, w.radius * 1.1, w.radius * 0.22)
+		spoke.CFrame = wheel.CFrame
+		spoke.Color = Color3.fromHex("#30333a")
+		spoke.CanCollide = false
+		spoke.Massless = true
+		spoke.Parent = wheel
+		if visualOnly then
+			wheel.Anchored, rim.Anchored, spoke.Anchored = true, true, true
+		else
+			weld(wheel, rim)
+			weld(wheel, spoke)
+			hinge(root, wheel, v3(w.pos), "x", "WheelHinge" .. i)
+			local ball = Instance.new("Part")
+			ball.Shape = Enum.PartType.Ball
+			ball.Name = "WheelCollider"
+			ball.Size = Vector3.one * w.radius * 2
+			ball.CFrame = wheel.CFrame
+			ball.Transparency = 1
+			ball.Massless = true
+			ball.CustomPhysicalProperties = NO_FRICTION
+			ball.CollisionGroup = "Vehicle"
+			ball.CanQuery = false
+			ball.Parent = model
+			weld(root, ball)
+		end
+	end
+
+	if visualOnly then
+		return model
+	end
+
+	-- Propellers / rotors
+	for i, sp in spec.spinners or {} do
+		local hub = parts[sp.parts[1]]
+		for j, n in sp.parts do
+			local part = parts[n]
+			part.CanCollide = false
+			part.CollisionGroup = "VehicleDecor"
+			part.Massless = j > 1
+			part.CustomPhysicalProperties = FEATHER
+			if j > 1 then
+				weld(hub, part)
+			end
+		end
+		hinge(root, hub, v3(sp.pivot), sp.axis, "Spinner" .. i)
+	end
+
+	-- Tank turret on a servo
+	if spec.turret then
+		local ring = parts[spec.turret[1]]
+		for j, n in spec.turret do
+			local part = parts[n]
+			part.CollisionGroup = "VehicleDecor"
+			part.Massless = j > 1
+			if j > 1 then
+				weld(ring, part)
+			end
+		end
+		local h = hinge(root, ring, v3(spec.turretPivot), "y", "TurretHinge")
+		h.ActuatorType = Enum.ActuatorType.Servo
+		h.ServoMaxTorque = 1e7
+		h.AngularSpeed = 1.2
+		h.TargetAngle = 0
+	end
+
+	-- Headlights
+	for name, part in parts do
+		if string.find(name, "Headlight") or name == "Headlamp" then
+			local light = Instance.new("SpotLight")
+			light.Face = Enum.NormalId.Front
+			light.Range = 60
+			light.Brightness = 2
+			light.Angle = 70
+			light.Parent = part
+		end
+	end
+
+	-- Driver seat (input only; the legacy VehicleSeat motors are disabled)
+	local seat = Instance.new("VehicleSeat")
+	seat.Name = "DriverSeat"
+	seat.Size = Vector3.new(2, 0.6, 2)
+	seat.CFrame = CFrame.new(v3(spec.seat))
+	seat.Transparency = 1
+	seat.CanCollide = false
+	seat.Massless = true
+	seat.MaxSpeed, seat.Torque, seat.TurnSpeed = 0, 0, 0
+	seat.HeadsUpDisplay = false
+	seat.CollisionGroup = "VehicleDecor"
+	seat.Parent = model
+	weld(root, seat)
+
+	-- Force handles the client drives.
+	local center = Instance.new("Attachment")
+	center.Name = "Center"
+	center.Parent = root
+	local drive = Instance.new("VectorForce")
+	drive.Name = "Drive"
+	drive.Attachment0 = center
+	drive.RelativeTo = Enum.ActuatorRelativeTo.World
+	drive.ApplyAtCenterOfMass = true
+	drive.Force = Vector3.zero
+	drive.Parent = root
+	local steer = Instance.new("Torque")
+	steer.Name = "Steer"
+	steer.Attachment0 = center
+	steer.RelativeTo = Enum.ActuatorRelativeTo.World
+	steer.Torque = Vector3.zero
+	steer.Parent = root
+
+	model:SetAttribute("VehicleKey", key)
+	model:SetAttribute("Kind", spec.phys.kind)
+	model:SetAttribute("Display", spec.display)
+	model:SetAttribute("Impact", spec.impact)
+	return model
+end
+
+return Builder
