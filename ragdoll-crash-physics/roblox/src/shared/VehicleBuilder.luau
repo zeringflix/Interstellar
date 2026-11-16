@@ -11,6 +11,7 @@
 --   Wheel visuals / propellers / rotors: light non-colliding parts on motor hinges
 --   Turret        (tank) separate assembly on a servo hinge
 local Specs = require(script.Parent.VehicleSpecs)
+local MeshInfo = require(script.Parent.VehicleMeshInfo)
 
 local Builder = {}
 
@@ -99,6 +100,68 @@ local function hinge(root: BasePart, part: BasePart, pivot: Vector3, axis: strin
 	return h
 end
 
+-- Optional detailed meshes -----------------------------------------------------------------
+-- If the Blender models have been imported (ReplicatedStorage.VehicleMeshes.<Key>, see docs/MODELS.md),
+-- they replace the look of the part-built vehicle. The parts stay as the collision / physics body.
+-- Roblox re-centres every imported mesh on its bounding box, so VehicleMeshInfo (generated from the
+-- .blend files) records where each mesh's centre belongs relative to the vehicle origin, and its size.
+local function applyMeshes(model: Model, key: string, root: BasePart, parts, wheelParts, spec, visualOnly: boolean?): boolean
+	local library = game:GetService("ReplicatedStorage"):FindFirstChild("VehicleMeshes")
+	local source = library and library:FindFirstChild(key)
+	local info = MeshInfo[key]
+	if not source or not info then
+		return false
+	end
+	local used = 0
+	for _, src in source:GetDescendants() do
+		local entry = src:IsA("MeshPart") and info[src.Name]
+		if entry then
+			local mesh = src:Clone() :: MeshPart
+			mesh:ClearAllChildren()
+			mesh.Size = Vector3.new(entry[4], entry[5], entry[6])
+			mesh.CFrame = CFrame.new(entry[1], entry[2], entry[3])
+			mesh.CanCollide, mesh.CanQuery, mesh.CanTouch = false, false, false
+			mesh.Massless = true
+			mesh.CollisionGroup = "VehicleDecor"
+			mesh.Anchored = visualOnly == true
+			local kind = string.match(src.Name, "_(%a+)%d*$") or "Body"
+			if kind == "Glass" then
+				mesh.Material, mesh.Transparency = Enum.Material.Glass, 0.45
+			elseif kind == "Lights" then
+				mesh.Material = Enum.Material.Neon
+			else
+				mesh.Material = Enum.Material.SmoothPlastic
+			end
+			mesh.Color = Color3.new(1, 1, 1) -- colours are baked into the mesh as vertex colours
+			mesh.Parent = model
+			if not visualOnly then
+				local index = tonumber(string.match(src.Name, "%d+$"))
+				local target: BasePart = root
+				if kind == "Wheel" and index and wheelParts[index] then
+					target = wheelParts[index]
+				elseif kind == "Spin" and index and spec.spinners and spec.spinners[index] then
+					target = parts[spec.spinners[index].parts[1]]
+				elseif kind == "Turret" and spec.turret then
+					target = parts[spec.turret[1]]
+				end
+				weld(target, mesh)
+			end
+			used += 1
+		end
+	end
+	if used == 0 then
+		return false
+	end
+	for _, d in model:GetDescendants() do -- hide the blocky stand-ins, keep them as colliders
+		if d:IsA("BasePart") and not d:IsA("MeshPart") then
+			d.Transparency = 1
+			d.CastShadow = false
+		end
+	end
+	model:SetAttribute("DetailedMesh", true)
+	return true
+end
+
 function Builder.getSpec(key: string)
 	return Specs.Vehicles[key]
 end
@@ -160,6 +223,7 @@ function Builder.build(key: string, visualOnly: boolean?): Model
 	end
 
 	-- Wheels
+	local wheelParts = {}
 	for i, w in spec.wheels do
 		local wheel = Instance.new("Part")
 		wheel.Shape = Enum.PartType.Cylinder
@@ -172,6 +236,7 @@ function Builder.build(key: string, visualOnly: boolean?): Model
 		wheel.CollisionGroup = "VehicleDecor"
 		wheel.CustomPhysicalProperties = FEATHER
 		wheel.Parent = model
+		wheelParts[i] = wheel
 		local rim = Instance.new("Part")
 		rim.Shape = Enum.PartType.Cylinder
 		rim.Name = "Rim"
@@ -212,6 +277,7 @@ function Builder.build(key: string, visualOnly: boolean?): Model
 	end
 
 	if visualOnly then
+		applyMeshes(model, key, root, parts, wheelParts, spec, true)
 		return model
 	end
 
@@ -293,6 +359,7 @@ function Builder.build(key: string, visualOnly: boolean?): Model
 	steer.Torque = Vector3.zero
 	steer.Parent = root
 
+	applyMeshes(model, key, root, parts, wheelParts, spec, false)
 	model:SetAttribute("VehicleKey", key)
 	model:SetAttribute("Kind", spec.phys.kind)
 	model:SetAttribute("Display", spec.display)

@@ -21,6 +21,50 @@ local PART_REGION = {
 	LeftUpperLeg = "LeftLeg", LeftLowerLeg = "LeftLeg", LeftFoot = "LeftLeg",
 	RightUpperLeg = "RightLeg", RightLowerLeg = "RightLeg", RightFoot = "RightLeg",
 }
+-- Exact spot shown to the player ("Left Knee"), finer than the six damage regions.
+local PART_LABEL = {
+	Head = "Head", UpperTorso = "Chest", LowerTorso = "Pelvis", HumanoidRootPart = "Chest",
+	LeftUpperArm = "Left Shoulder", LeftLowerArm = "Left Elbow", LeftHand = "Left Hand",
+	RightUpperArm = "Right Shoulder", RightLowerArm = "Right Elbow", RightHand = "Right Hand",
+	LeftUpperLeg = "Left Thigh", LeftLowerLeg = "Left Knee", LeftFoot = "Left Foot",
+	RightUpperLeg = "Right Thigh", RightLowerLeg = "Right Knee", RightFoot = "Right Foot",
+}
+function DamageModel.partLabel(partName: string): string
+	return PART_LABEL[partName] or "Chest"
+end
+
+-- Plain-language injury for a hit, by region kind and severity (game flavour, not medicine).
+local INJURY = {
+	Head = { LIGHT = "Dazed", MEDIUM = "Concussed", HEAVY = "Skull cracked", CRITICAL = "Severe head trauma" },
+	Torso = { LIGHT = "Winded", MEDIUM = "Bruised ribs", HEAVY = "Broken ribs", CRITICAL = "Chest crushed" },
+	Arm = { LIGHT = "Arm bruised", MEDIUM = "Arm sprained", HEAVY = "Arm broken", CRITICAL = "Arm shattered" },
+	Leg = { LIGHT = "Leg bruised", MEDIUM = "Leg sprained", HEAVY = "Leg broken", CRITICAL = "Leg shattered" },
+}
+function DamageModel.injury(region: string, severity: string): string
+	local kind = if region == "Head" or region == "Torso" then region elseif string.find(region, "Arm") then "Arm" else "Leg"
+	return INJURY[kind][severity] or "Hit"
+end
+
+-- One short phrase for how the dummy is doing right now ("Hurt, still standing").
+function DamageModel.condition(state, now: number): string
+	if state.dead then
+		return "Dead"
+	elseif now < state.unconsciousUntil then
+		return "Knocked out"
+	elseif state.ragdolled and not DamageModel.canStand(state) then
+		return "Crawling"
+	elseif state.ragdolled then
+		return "Down"
+	elseif state.health >= state.maxHealth then
+		return "Unhurt"
+	elseif state.regions.LeftLeg < 0.5 or state.regions.RightLeg < 0.5 then
+		return "Limping"
+	elseif state.health <= D.CRITICAL_HEALTH then
+		return "Critical, still standing"
+	end
+	return "Hurt, still standing"
+end
+
 function DamageModel.regionOf(partName: string): string
 	return PART_REGION[partName] or "Torso"
 end
@@ -33,7 +77,7 @@ function DamageModel.newState(id: number, typeName: string)
 	end
 	return {
 		id = id, typeName = typeName, armor = t.armor,
-		health = t.health, maxHealth = t.health, regions = regions,
+		health = t.health, maxHealth = t.health, blood = 100, regions = regions,
 		ragdolled = false, dead = false, bleeding = false,
 		unconsciousUntil = 0, staggerUntil = 0, hitUntil = 0, recoveringUntil = 0, downUntil = 0,
 		lastSource = "", lastSpeed = 0, lastRegion = "", lastDamageTime = -math.huge, lastDir = { 0, 0, 0 },
@@ -95,6 +139,7 @@ function DamageModel.applyHit(state, hit, now: number)
 		end
 		if (severity == "HEAVY" or severity == "CRITICAL" or damage >= 35) and state.regions[region] < 0.55 then
 			state.bleeding = true
+			state.blood = math.max(D.BLOOD_FLOOR, state.blood - damage * 0.12) -- the wound itself costs some blood
 		end
 		local legsOut = state.regions.LeftLeg <= 0.2 or state.regions.RightLeg <= 0.2
 		if severity ~= "LIGHT" or knockout or legsOut or state.ragdolled or state.health <= D.CRITICAL_HEALTH then
@@ -110,6 +155,8 @@ function DamageModel.applyHit(state, hit, now: number)
 	local record = {
 		id = state.id, region = region, severity = severity, damage = before - state.health,
 		health = state.health, source = state.lastSource, relSpeed = hit.relSpeed, reaction = reaction,
+		injury = DamageModel.injury(region, severity), partLabel = DamageModel.partLabel(hit.partName or ""),
+		blood = math.floor(state.blood + 0.5), bleeding = state.bleeding, dead = state.dead,
 		time = now, chain = hit.chain or false,
 	}
 	table.insert(state.history, record)
@@ -120,15 +167,27 @@ function DamageModel.applyHit(state, hit, now: number)
 end
 
 -- Time-based changes (bleeding drain). Returns true when something changed.
-function DamageModel.tick(state, dt: number): boolean
+function DamageModel.tick(state, dt: number, now: number?): boolean
 	if state.dead or not state.bleeding then
 		return false
 	end
+	local changed = false
+	if state.blood > D.BLOOD_FLOOR then
+		state.blood = math.max(D.BLOOD_FLOOR, state.blood - D.BLOOD_RATE * dt)
+		changed = true
+		if state.blood < 55 and now then -- heavy blood loss: the dummy passes out
+			state.unconsciousUntil = math.max(state.unconsciousUntil, now + 4)
+			state.ragdolled = true
+		end
+	else
+		state.bleeding = false -- clotted
+		changed = true
+	end
 	if state.health > D.BLEED_FLOOR then
 		state.health = math.max(D.BLEED_FLOOR, state.health - D.BLEED_RATE * dt)
-		return true
+		changed = true
 	end
-	return false
+	return changed
 end
 
 function DamageModel.isUnconscious(state, now: number): boolean
@@ -213,6 +272,7 @@ end
 
 function DamageModel.revive(state, now: number)
 	state.health = state.maxHealth
+	state.blood = 100
 	for _, r in DamageModel.REGIONS do
 		state.regions[r] = 1
 	end

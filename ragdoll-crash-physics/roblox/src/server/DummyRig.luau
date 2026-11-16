@@ -61,7 +61,7 @@ local function noCollide(a: BasePart, b: BasePart)
 	n.Parent = a
 end
 
-function DummyRig.build(typeName: string, id: number): Model
+local function buildBlocky(typeName: string, id: number): Model
 	local t = Config.DummyTypes[typeName] or Config.DummyTypes.Noob
 	local s = t.scale
 	local model = Instance.new("Model")
@@ -195,7 +195,144 @@ function DummyRig.build(typeName: string, id: number): Model
 	model:SetAttribute("DummyType", typeName)
 	model:SetAttribute("Display", t.display)
 	model:SetAttribute("Scale", s)
+	model:SetAttribute("Body", "Blocky")
 	return model
+end
+DummyRig.buildBlocky = buildBlocky
+
+-- ---------------------------------------------------------------------------------------------
+-- Catalog-avatar dummies (default): a real R15 rig with the Robloxian 2.0 (or Man) body and the
+-- animatable Man head, all grey. Built once per dummy type, then cloned for every spawn.
+-- Ragdoll joints are made from the rig's own <Joint>RigAttachment pairs.
+local BALL = { -- UpperAngle (cone about the sideways axis), twist lower / upper (swing forward / back)
+	Neck = { 40, -40, 40 }, Waist = { 20, -30, 20 }, Shoulder = { 80, -160, 60 }, Hip = { 40, -95, 40 },
+	Wrist = { 20, -30, 30 }, Ankle = { 20, -30, 30 },
+}
+local HINGE = { Elbow = { 0, 140 }, Knee = { -140, 0 } }
+
+local function addRagdollJoints(model: Model, stiffness: number)
+	for _, m in model:GetDescendants() do
+		if m:IsA("Motor6D") and m.Name ~= "Root" and m.Part0 and m.Part1 then
+			local p0, p1 = m.Part0 :: BasePart, m.Part1 :: BasePart
+			local a0 = p0:FindFirstChild(m.Name .. "RigAttachment")
+			local a1 = p1:FindFirstChild(m.Name .. "RigAttachment")
+			if a0 and a1 and a0:IsA("Attachment") and a1:IsA("Attachment") then
+				local kind = string.gsub(string.gsub(m.Name, "^Left", ""), "^Right", "")
+				local c: Constraint
+				if HINGE[kind] then
+					local h = Instance.new("HingeConstraint")
+					h.LimitsEnabled, h.LowerAngle, h.UpperAngle = true, HINGE[kind][1], HINGE[kind][2]
+					c = h
+				else
+					local lim = BALL[kind] or BALL.Wrist
+					local b = Instance.new("BallSocketConstraint")
+					b.LimitsEnabled, b.UpperAngle = true, lim[1]
+					b.TwistLimitsEnabled, b.TwistLowerAngle, b.TwistUpperAngle = true, lim[2], lim[3]
+					b.MaxFrictionTorque = stiffness
+					c = b
+				end
+				c.Name = m.Name .. "Ragdoll"
+				c.Attachment0, c.Attachment1 = a0, a1
+				c.Enabled = false
+				c.Parent = p1
+				noCollide(p0, p1)
+			end
+		end
+	end
+	for _, pair in EXTRA_NO_COLLIDE do
+		local a, b = model:FindFirstChild(pair[1]), model:FindFirstChild(pair[2])
+		if a and b then
+			noCollide(a :: BasePart, b :: BasePart)
+		end
+	end
+end
+
+local function buildAvatar(typeName: string): Model?
+	local t = Config.DummyTypes[typeName] or Config.DummyTypes.Noob
+	local body = Config.Bodies[Config.DummyBody]
+	if not body or Config.DummyBody == "Blocky" then
+		return nil
+	end
+	local ok, model = pcall(function()
+		local desc = Instance.new("HumanoidDescription")
+		desc.Torso, desc.RightArm, desc.LeftArm = body.Torso, body.RightArm, body.LeftArm
+		desc.LeftLeg, desc.RightLeg = body.LeftLeg, body.RightLeg
+		desc.Head = Config.MAN_DYNAMIC_HEAD
+		local grey = Color3.fromHex(t.colors.head)
+		desc.HeadColor, desc.TorsoColor = grey, grey
+		desc.LeftArmColor, desc.RightArmColor, desc.LeftLegColor, desc.RightLegColor = grey, grey, grey, grey
+		desc.HeightScale, desc.WidthScale, desc.DepthScale, desc.HeadScale = t.scale, t.scale, t.scale, t.scale
+		return game:GetService("Players"):CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not model or not model:FindFirstChild("UpperTorso") or not model:FindFirstChild("HumanoidRootPart") then
+		return nil
+	end
+	local props = PhysicalProperties.new(t.density, 0.5, 0.15, 1, 1)
+	for _, d in model:GetDescendants() do
+		if d:IsA("LuaSourceContainer") or d:IsA("Accessory") or d:IsA("Clothing") or d:IsA("ShirtGraphic") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.CustomPhysicalProperties = props
+			d.CollisionGroup = "Dummy"
+			d.Color = Color3.fromHex(t.colors.head)
+			d.Anchored = false
+		end
+	end
+	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
+	root.RootPriority = 127
+	model.PrimaryPart = root
+	addRagdollJoints(model, 6 * t.scale)
+	if t.armorKit then
+		local torso = model:FindFirstChild("UpperTorso") :: BasePart
+		local plate = Instance.new("Part")
+		plate.Name = "Armor"
+		plate.Size = torso.Size + Vector3.new(0.25, 0.1, 0.25)
+		plate.CFrame = torso.CFrame
+		plate.Color = Color3.fromHex("#2b2e31")
+		plate.Material = Enum.Material.Metal
+		plate.Massless, plate.CanCollide = true, false
+		plate.CollisionGroup = "Dummy"
+		plate.Parent = torso
+		local w = Instance.new("WeldConstraint")
+		w.Part0, w.Part1 = torso, plate
+		w.Parent = plate
+	end
+	local hum = model:FindFirstChildOfClass("Humanoid") :: Humanoid
+	hum.BreakJointsOnDeath = false
+	hum.RequiresNeck = false
+	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	hum.MaxHealth, hum.Health = 1e6, 1e6
+	hum.WalkSpeed = 8
+	hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+	if not hum:FindFirstChildOfClass("Animator") then
+		Instance.new("Animator").Parent = hum
+	end
+	model:SetAttribute("Scale", t.scale)
+	model:SetAttribute("Body", Config.DummyBody)
+	model:SetAttribute("DummyType", typeName)
+	model:SetAttribute("Display", t.display)
+	return model
+end
+
+local templates = {} :: { [string]: Model | boolean }
+
+-- Yields the first time a type is requested (the avatar is fetched from Roblox); instant afterwards.
+function DummyRig.build(typeName: string, id: number): Model
+	local key = Config.DummyBody .. ":" .. typeName
+	if templates[key] == nil then
+		templates[key] = buildAvatar(typeName) or false
+	end
+	local template = templates[key]
+	if template then
+		local model = (template :: Model):Clone()
+		model.Name = "Dummy" .. id
+		model:SetAttribute("DummyId", id)
+		return model
+	end
+	return buildBlocky(typeName, id) -- offline / asset failure fallback: the part-built blocky dummy
 end
 
 return DummyRig

@@ -69,7 +69,7 @@ return {
 		Sedan = { engine = "car", horn = "horn" }, SportsCar = { engine = "sports", horn = "horn" },
 		PoliceCar = { engine = "car", horn = "horn" }, MuscleCar = { engine = "sports", horn = "horn" },
 		PickupTruck = { engine = "truck", horn = "truckHorn" }, MonsterTruck = { engine = "truck", horn = "truckHorn" },
-		SchoolBus = { engine = "bus", horn = "truckHorn" }, DumpTruck = { engine = "truck", horn = "truckHorn" },
+		CityBus = { engine = "bus", horn = "truckHorn" }, DumpTruck = { engine = "truck", horn = "truckHorn" },
 		Tank = { engine = "tank", layer = "tracks" }, ArmoredTruck = { engine = "truck", horn = "truckHorn" },
 		SmallPlane = { engine = "plane", layer = "wind" }, CargoPlane = { engine = "plane", layer = "wind" },
 		Helicopter = { engine = "heli", layer = "wind" }, Train = { engine = "train", horn = "trainHorn" },

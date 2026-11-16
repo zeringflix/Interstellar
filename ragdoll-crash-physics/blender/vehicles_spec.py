@@ -60,7 +60,7 @@ def car(L, W, color, *, clear=0.8, bh=1.9, cab_h=1.7, cab_len=None, cab_z=0.6, w
             parts.append(P("SpoilerLeg", (0.25, 0.8, 0.3), (sx * (W / 2 - 0.8), y0 + bh + 0.4, L / 2 - 0.6), accent, "dark", collide=False))
     parts += extras or []
     wb = L * 0.31
-    return dict(carStyle=True, parts=parts, wheels=wheels4(W + 0.1, -wb, wb, wheel_r, wheel_w),
+    return dict(carStyle=True, parts=parts, wheels=wheels4(W - wheel_w, -wb, wb, wheel_r, wheel_w),
                 seat=[-W / 4 if W > 5 else 0, y0 + bh - 0.2, cab_z - 0.4])
 
 
@@ -129,26 +129,23 @@ add("MonsterTruck", "Monster Truck", "Heavy", "Heavy / Bouncy", carphys(105, 46,
 for w in V["MonsterTruck"]["wheels"]:
     w["pos"][0] = (1 if w["pos"][0] > 0 else -1) * 5.6
 
-add("SchoolBus", "School Bus", "Heavy", "Heavy / Long", carphys(80, 26, 1.1),
+add("CityBus", "City Bus", "Heavy", "Heavy / Long", carphys(80, 26, 1.1),
     dict(parts=[
-        P("Body", (9, 2.4, 34), (0, 2.6, 0), "#ffb800"),
-        P("Windows", (8.4, 2.6, 26), (0, 5.1, 2.5), "#9fd3ee", "glass"),
-        P("UpperBody", (9, 1.0, 27), (0, 6.9, 2.5), "#ffb800"),
-        P("Roof", (8.6, 0.5, 26.4), (0, 7.65, 2.5), "#f4f5f7"),
-        P("HoodBlock", (8.2, 1.8, 5.5), (0, 4.7, -13.6), "#ffb800"),
-        P("Windshield", (8.2, 2.6, 0.4), (0, 5.1, -10.7), "#9fd3ee", "glass"),
-        P("StripeL", (0.1, 0.4, 33), (-4.53, 3.2, 0), "#15171c", "dark", collide=False),
-        P("StripeR", (0.1, 0.4, 33), (4.53, 3.2, 0), "#15171c", "dark", collide=False),
-        P("BumperF", (9.4, 0.9, 0.7), (0, 1.8, -17.2), "#15171c", "dark"),
-        P("BumperR", (9.4, 0.9, 0.7), (0, 1.8, 17.2), "#15171c", "dark"),
-        P("HeadlightL", (1.2, 0.7, 0.2), (-3.2, 3.2, -17.05), "#fff6c8", "light"),
-        P("HeadlightR", (1.2, 0.7, 0.2), (3.2, 3.2, -17.05), "#fff6c8", "light"),
-        P("BrakeL", (1.2, 0.7, 0.2), (-3.2, 3.2, 17.05), "#d21f1f", "light"),
-        P("BrakeR", (1.2, 0.7, 0.2), (3.2, 3.2, 17.05), "#d21f1f", "light"),
-        P("StopSign", (0.15, 1.6, 1.6), (-4.7, 5.0, -8), "#d21f1f", "neon", shape="cyl", axis="x"),
-        P("Floor", (8.2, 0.3, 26), (0, 3.95, 2.5), "#55585f", "dark"),
-    ], wheels=wheels4(9.2, -11.5, 10.5, 1.9, 1.5), seat=[-2.2, 4.3, -9.0],
-        passengerSeats=[[sx * 2.4, 4.3, z] for z in (-4, 0, 4, 8, 12) for sx in (-1, 1)]),
+        P("Body", (9, 2.6, 36), (0, 2.5, 0), "#f2f4f6"),
+        P("Windows", (8.6, 3.2, 34), (0, 5.4, 0), "#9fd3ee", "glass"),
+        P("UpperBody", (9, 0.9, 36), (0, 7.45, 0), "#f2f4f6"),
+        P("Roof", (8.6, 0.4, 35), (0, 8.1, 0), "#e3e6ea"),
+        P("AirCon", (5, 0.9, 8), (0, 8.7, 6), "#d5d9de", collide=False),
+        P("Stripe", (9.06, 0.9, 36.02), (0, 3.3, 0), "#0b8f8a", "dark", collide=False),
+        P("DestSign", (6, 0.9, 0.2), (0, 7.4, -18.05), "#ff9a1a", "neon"),
+        P("BumperF", (9.2, 0.9, 0.5), (0, 1.6, -18.2), "#15171c", "dark"),
+        P("BumperR", (9.2, 0.9, 0.5), (0, 1.6, 18.2), "#15171c", "dark"),
+        P("HeadlightL", (1.4, 0.6, 0.2), (-3.2, 2.5, -18.05), "#fff6c8", "light"),
+        P("HeadlightR", (1.4, 0.6, 0.2), (3.2, 2.5, -18.05), "#fff6c8", "light"),
+        P("BrakeL", (0.8, 1.6, 0.2), (-3.9, 3.4, 18.05), "#d21f1f", "light"),
+        P("BrakeR", (0.8, 1.6, 0.2), (3.9, 3.4, 18.05), "#d21f1f", "light"),
+        P("Floor", (8.2, 0.3, 34), (0, 3.9, 0), "#55585f", "dark"),
+    ], wheels=wheels4(9 - 1.5, -11.5, 10.5, 1.9, 1.5), seat=[-2.2, 4.3, -15.5]),
     dict(speed=2, weight=4, handling=2), mass=1800, impact=1.6)
 
 add("DumpTruck", "Dump Truck", "Heavy", "Very Heavy / Slow", carphys(70, 24, 1.0),

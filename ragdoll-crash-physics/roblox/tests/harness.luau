@@ -24,7 +24,9 @@ function Harness.new(useRoblox: boolean, extraGlobals: { [string]: any }?)
 	local env = {}
 	local game = { ReplicatedStorage = { Shared = node(ROOT .. "/shared") } }
 	function game:GetService(name)
-		return (extraGlobals and extraGlobals.services and extraGlobals.services[name]) or game[name] or {}
+		return (extraGlobals and extraGlobals.services and extraGlobals.services[name]) or game[name] or { FindFirstChild = function()
+			return nil
+		end }
 	end
 	local function load(path: string)
 		if cache[path] ~= nil and not useRoblox then

@@ -14,17 +14,25 @@ Config.DUMMY_LIMITS = { Low = 12, Automatic = 20, High = 25 }
 Config.MOBILE_DUMMY_LIMIT = 14
 
 -- Dummies -------------------------------------------------------------
+-- Every dummy is fully grey. `body` picks the avatar: "Robloxian2" (default) | "Man" | "Blocky".
+-- Robloxian 2.0 / Man bodies and the animatable Man head are Roblox's own catalog assets, loaded at
+-- runtime with Players:CreateHumanoidModelFromDescription (see DummyRig).
+Config.DummyBody = "Robloxian2"
+Config.Bodies = {
+	Robloxian2 = { Torso = 27112025, RightArm = 27112039, LeftArm = 27112052, LeftLeg = 27112056, RightLeg = 27112068 },
+	Man = { Torso = 86500008, RightArm = 86500036, LeftArm = 86500054, LeftLeg = 86500064, RightLeg = 86500078 },
+	Blocky = {},
+}
+Config.MAN_DYNAMIC_HEAD = 10725826963 -- "Man Face - Head": the dynamic (FaceControls) Man head
+local function grey(hex)
+	return { head = hex, arms = hex, torso = hex, legs = hex }
+end
 Config.DummyTypes = {
-	Noob = { display = "DUMMY", scale = 1, density = 0.7, armor = 1, health = 100,
-		colors = { head = "#f5cd30", arms = "#f5cd30", torso = "#0d69ac", legs = "#4b974b" } },
-	Crash = { display = "CRASH DUMMY", scale = 1, density = 0.7, armor = 1, health = 100,
-		colors = { head = "#a3a2a5", arms = "#a3a2a5", torso = "#1b2a4a", legs = "#8d8c90" }, markings = true },
-	Heavy = { display = "HEAVY DUMMY", scale = 1.18, density = 1.6, armor = 0.7, health = 140,
-		colors = { head = "#f5cd30", arms = "#f5cd30", torso = "#7a2d2d", legs = "#3a3a3f" } },
-	Light = { display = "LIGHT DUMMY", scale = 0.88, density = 0.35, armor = 1.2, health = 80,
-		colors = { head = "#f5cd30", arms = "#f5cd30", torso = "#ff9ecb", legs = "#9ad7ff" } },
-	Armored = { display = "ARMORED DUMMY", scale = 1, density = 1.0, armor = 0.5, health = 110,
-		colors = { head = "#f5cd30", arms = "#5c6166", torso = "#3c4043", legs = "#5c6166" }, armorKit = true },
+	Noob = { display = "DUMMY", scale = 1, density = 0.7, armor = 1, health = 100, colors = grey("#a3a2a5") },
+	Crash = { display = "CRASH DUMMY", scale = 1, density = 0.7, armor = 1, health = 100, colors = grey("#8d8c90"), markings = true },
+	Heavy = { display = "HEAVY DUMMY", scale = 1.18, density = 1.6, armor = 0.7, health = 140, colors = grey("#6f6e72") },
+	Light = { display = "LIGHT DUMMY", scale = 0.88, density = 0.35, armor = 1.2, health = 80, colors = grey("#c4c3c7") },
+	Armored = { display = "ARMORED DUMMY", scale = 1, density = 1.0, armor = 0.5, health = 110, colors = grey("#7b7a7e"), armorKit = true },
 }
 
 -- Impact detection ----------------------------------------------------
@@ -48,6 +56,8 @@ Config.Damage = {
 	SEVERITY = { MEDIUM = 22, HEAVY = 55, CRITICAL = 95 }, -- thresholds on relSpeed * vehicleImpact
 	BLEED_RATE = 1,      -- health per second while BLEEDING
 	BLEED_FLOOR = 10,    -- bleeding alone never takes a dummy below this
+	BLOOD_RATE = 0.8,    -- % of blood lost per second while BLEEDING
+	BLOOD_FLOOR = 40,    -- bleeding stops by itself here (clotting); below 55% the dummy passes out
 	CRITICAL_HEALTH = 25,
 	STAGGER_TIME = 1.3,
 	HIT_FLASH_TIME = 1.2,

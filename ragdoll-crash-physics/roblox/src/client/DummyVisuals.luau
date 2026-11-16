@@ -51,10 +51,89 @@ local function frame(parent: Instance, color: Color3, round: number?): Frame
 	return f
 end
 
+-- FACS targets for the animatable Man head (FaceControls). 0 = neutral Man smirk.
+local FACS = {
+	Normal = {},
+	Surprised = { JawDrop = 0.75, LeftEyeUpperLidRaiser = 1, RightEyeUpperLidRaiser = 1, LeftInnerBrowRaiser = 1, RightInnerBrowRaiser = 1,
+		LeftOuterBrowRaiser = 0.8, RightOuterBrowRaiser = 0.8, Funneler = 0.3 },
+	Dizzy = { JawDrop = 0.3, LeftEyeClosed = 0.35, RightEyeClosed = 0.15, LeftBrowLowerer = 0.5, RightOuterBrowRaiser = 0.6, MouthLeft = 0.3 },
+	Hurt = { Corrugator = 1, LeftBrowLowerer = 0.8, RightBrowLowerer = 0.8, LeftCheekRaiser = 0.7, RightCheekRaiser = 0.7, LeftLipCornerDown = 0.8,
+		RightLipCornerDown = 0.8, LeftEyeClosed = 0.3, RightEyeClosed = 0.3, LeftLipStretcher = 0.4, RightLipStretcher = 0.4 },
+	Unconscious = { LeftEyeClosed = 1, RightEyeClosed = 1, JawDrop = 0.2, LeftLipCornerDown = 0.3, RightLipCornerDown = 0.3 },
+	Dead = { LeftEyeClosed = 1, RightEyeClosed = 1, JawDrop = 0.45, TongueOut = 0.6, TongueDown = 0.3, JawLeft = 0.3 },
+}
+local FACS_KEYS = {}
+do
+	local seen = { EyesLookLeft = true, EyesLookRight = true, EyesLookUp = true, EyesLookDown = true }
+	for _, set in FACS do
+		for k in set do
+			seen[k] = true
+		end
+	end
+	for k in seen do
+		table.insert(FACS_KEYS, k)
+	end
+end
+
+local function stepFacs(f, dt: number, now: number)
+	local target = FACS[f.target] or FACS.Normal
+	local fc = f.facs
+	local k = math.min(1, dt * (if f.target == "Surprised" then 22 else 7))
+	local busy = false
+	for _, key in FACS_KEYS do
+		local want = target[key] or 0
+		if f.target == "Dizzy" then -- eyes roll around
+			if key == "EyesLookLeft" then
+				want = math.max(0, math.sin(now * 7))
+			elseif key == "EyesLookRight" then
+				want = math.max(0, -math.sin(now * 7))
+			elseif key == "EyesLookUp" then
+				want = math.max(0, math.cos(now * 7))
+			elseif key == "EyesLookDown" then
+				want = math.max(0, -math.cos(now * 7))
+			end
+		end
+		if (key == "LeftEyeClosed" or key == "RightEyeClosed") and f.blink > want then
+			want = f.blink
+		end
+		local cur = f.vals[key] or 0
+		if math.abs(cur - want) > 0.004 then
+			cur += (want - cur) * k
+			f.vals[key] = cur
+			fc[key] = cur
+			busy = true
+		end
+	end
+	if f.target == "Normal" or f.target == "Hurt" then
+		if now >= f.nextBlink then
+			local phase = (now - f.nextBlink) / 0.16
+			if phase >= 1 then
+				f.blink = 0
+				f.nextBlink = now + rng:NextNumber(2, 6)
+			else
+				f.blink = math.sin(phase * math.pi)
+			end
+		end
+	else
+		f.blink = 0
+	end
+	return busy
+end
+
 local function buildFace(model: Model)
 	local head = model:WaitForChild("Head", 5) :: BasePart?
 	if not head then
 		return
+	end
+	local facs = head:FindFirstChildOfClass("FaceControls")
+	if facs then
+		local f = { facs = facs, head = head, target = model:GetAttribute("Face") or "Normal", vals = {}, t = 1, blink = 0,
+			nextBlink = os.clock() + rng:NextNumber(1, 5) }
+		faces[model] = f
+		model:GetAttributeChangedSignal("Face"):Connect(function()
+			f.target = model:GetAttribute("Face") or "Normal"
+		end)
+		return f
 	end
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Face"
@@ -106,7 +185,7 @@ end
 
 function Visuals.setFace(model: Model, name: string)
 	local f = faces[model]
-	if not f or not EXPR[name] or f.target == name then
+	if not f or f.facs or not EXPR[name] or f.target == name then
 		return
 	end
 	f.target = name
@@ -319,7 +398,11 @@ function Visuals.init()
 		local camPos = cam and cam.CFrame.Position or Vector3.zero
 		for _, f in faces do
 			-- faces far from the camera are not worth animating
-			if f.t < 1 or (f.head.Position - camPos).Magnitude < 160 then
+			if f.facs then
+				if (f.head.Position - camPos).Magnitude < 200 then
+					stepFacs(f, dt, now)
+				end
+			elseif f.t < 1 or (f.head.Position - camPos).Magnitude < 160 then
 				stepFace(f, dt, now)
 			end
 		end

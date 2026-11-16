@@ -48,6 +48,14 @@ local function publish(d, now: number)
 			m:SetAttribute("Cond" .. r, v)
 		end
 	end
+	local blood = math.floor(s.blood + 0.5)
+	if m:GetAttribute("Blood") ~= blood then
+		m:SetAttribute("Blood", blood)
+	end
+	local cond = DamageModel.condition(s, now)
+	if m:GetAttribute("Condition") ~= cond then
+		m:SetAttribute("Condition", cond)
+	end
 	m:SetAttribute("LastSource", s.lastSource)
 	m:SetAttribute("LastSpeedMph", math.floor(s.lastSpeed * Config.STUDS_PER_SEC_TO_MPH + 0.5))
 	m:SetAttribute("LastRegion", s.lastRegion)
@@ -76,10 +84,15 @@ function DummyService.spawn(typeName: string, cf: CFrame, tag: string?): any?
 	local id = nextId
 	nextId += 1
 	local model = DummyRig.build(typeName, id)
-	local scale = Config.DummyTypes[typeName].scale
-	local hip = DummyRig.HIP_HEIGHT * scale
+	if not folder.Parent then
+		model:Destroy()
+		return nil
+	end
+	local hum0 = model:FindFirstChildOfClass("Humanoid") :: Humanoid
+	local rootPart = model:FindFirstChild("HumanoidRootPart") :: BasePart
+	local hip = hum0.HipHeight
 	-- cf is a ground point; lift the root so the feet rest on it
-	local standCF = cf * CFrame.new(0, hip + scale, 0)
+	local standCF = cf * CFrame.new(0, hip + rootPart.Size.Y / 2, 0)
 	model:PivotTo(standCF)
 	model.Parent = folder
 	RagdollService.serverOwn(model)
@@ -228,7 +241,8 @@ function DummyService.hit(id: number, hit)
 		return nil
 	end
 	local now = os.clock()
-	hit.region = DamageModel.regionOf(if hit.part then hit.part.Name else "UpperTorso")
+	hit.partName = if hit.part then hit.part.Name else "UpperTorso"
+	hit.region = DamageModel.regionOf(hit.partName)
 	local record = DamageModel.applyHit(d.state, hit, now)
 	if record.ignored then
 		return nil
@@ -241,6 +255,7 @@ function DummyService.hit(id: number, hit)
 	d.skipVelCheckUntil = now + 0.3
 	publish(d, now)
 	record.status = d.model:GetAttribute("Status")
+	record.condition = d.model:GetAttribute("Condition")
 	record.display = d.model:GetAttribute("Display")
 	record.position = d.torso.Position
 	for _, fn in DummyService.recordListeners do
@@ -270,7 +285,10 @@ function DummyService.update(dt: number)
 			continue
 		end
 
-		DamageModel.tick(s, dt)
+		DamageModel.tick(s, dt, now)
+		if s.ragdolled and not RagdollService.isRagdolled(model) then
+			RagdollService.enable(model) -- passed out from blood loss
+		end
 
 		if s.ragdolled then
 			-- Hard landings / secondary collisions while tumbling.

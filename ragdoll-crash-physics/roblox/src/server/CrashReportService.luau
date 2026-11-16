@@ -21,7 +21,8 @@ local function wire(record)
 	return {
 		id = record.id, display = record.display, region = DamageModel.REGION_LABEL[record.region],
 		severity = record.severity, damage = record.damage, health = math.ceil(record.health),
-		status = record.status, source = record.source, chain = record.chain,
+		status = record.status, source = record.source, chain = record.chain, injury = record.injury,
+		part = record.partLabel, blood = record.blood, bleeding = record.bleeding, dead = record.dead, condition = record.condition,
 		mph = math.floor(record.relSpeed * Config.STUDS_PER_SEC_TO_MPH + 0.5), position = record.position,
 	}
 end
