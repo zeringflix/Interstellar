@@ -5,6 +5,9 @@
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "VehicleMeshes": {
+        "$className": "Folder"
       }
     },
     "ServerScriptService": {
@@ -32,8 +35,7 @@
         "Gravity": 196.2,
         "StreamingEnabled": true,
         "StreamingMinRadius": 256,
-        "StreamingTargetRadius": 900,
-        "StreamOutBehavior": "LowMemory"
+        "StreamingTargetRadius": 900
       }
     },
     "SoundService": {

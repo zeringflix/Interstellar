@@ -12,9 +12,14 @@ local static: Folder, props: Folder
 -- Three maps share the same test-zone layout (so every preset, spawn and zone teleport works on
 -- all of them) and differ in ground, palette, lighting and scenery.
 local THEMES = {
-	["Test Grounds"] = { grass = "#58c96a", grassDark = "#3fae55", line = "#49b85c", scenery = "trees", clock = 13.5, sky = { 199, 220, 255 } },
-	Downtown = { grass = "#9aa0a8", grassDark = "#7d838c", line = "#868c95", scenery = "city", clock = 16.2, sky = { 214, 222, 235 } },
-	["Desert Range"] = { grass = "#e0c48a", grassDark = "#c9a96b", line = "#d2b47a", scenery = "desert", clock = 11.0, sky = { 255, 236, 200 } },
+	-- ground = the tiled test-ground floor (warm concrete, like the reference sandboxes), tile = its seams,
+	-- tile2 = the alternate checker tone, lawn = the few grass patches, outer = beyond the fence
+	["Test Grounds"] = { ground = "#cfc8b8", tile = "#bdb5a3", tile2 = "#c7bfae", lawn = "#86a873", outer = "#9a9486", hill = "#8f9a7d",
+		scenery = "trees", clock = 13.5, sky = { 199, 220, 255 } },
+	Downtown = { ground = "#a9adb3", tile = "#969aa1", tile2 = "#a0a4aa", lawn = "#7f9a72", outer = "#868a90", hill = "#7d828a",
+		scenery = "city", clock = 16.2, sky = { 214, 222, 235 } },
+	["Desert Range"] = { ground = "#e0c896", tile = "#cdb37f", tile2 = "#d7bd89", lawn = "#a7a46a", outer = "#c9a96b", hill = "#c29a64",
+		scenery = "desert", clock = 11.0, sky = { 255, 236, 200 } },
 }
 MapService.current = "Test Grounds"
 
@@ -68,6 +73,56 @@ local function ramp(name: string, width: number, height: number, length: number,
 	w.Anchored = true
 	w.Parent = static
 	return w
+end
+
+-- ramp rising along `dir` (unit vector in XZ) from its low edge at (x, z)
+local function rampAt(name: string, width: number, height: number, length: number, x: number, z: number, dir: Vector3, color: string): WedgePart
+	local w = Instance.new("WedgePart")
+	w.Name = name
+	w.Size = Vector3.new(width, height, length)
+	local centre = Vector3.new(x, height / 2, z) + dir * (length / 2)
+	-- WedgePart: tall face is the back (+Z local), slope bottom at the front (-Z), so the back faces along dir
+	w.CFrame = CFrame.lookAt(centre, centre - dir)
+	w.Color = Color3.fromHex(color)
+	w.Material = Enum.Material.SmoothPlastic
+	w.Anchored = true
+	w.Parent = static
+	return w
+end
+
+-- asphalt road between two points on the ground, with kerb edges, white edge lines and a dashed
+-- yellow centre line. Roads sit at 0.12 so they never z-fight with the 0.1 zone pads.
+local function road(name: string, a: Vector2, b: Vector2, width: number)
+	local d = b - a
+	local len = d.Magnitude
+	local mid = (a + b) / 2
+	local along = Vector3.new(d.X, 0, d.Y).Unit
+	local cf = CFrame.lookAt(Vector3.new(mid.X, 0, mid.Y), Vector3.new(mid.X, 0, mid.Y) + along)
+	local function strip(n: string, w: number, l: number, offX: number, offZ: number, top: number, color: string, mat: Enum.Material?)
+		local p = block(n, Vector3.new(w, 0.4, l), Vector3.zero, color, mat)
+		p.CFrame = cf * CFrame.new(offX, top - 0.2, offZ)
+		return p
+	end
+	strip(name, width, len, 0, 0, 0.12, C.asphalt, Enum.Material.Asphalt)
+	for _, s in { -1, 1 } do
+		strip("EdgeLine", 0.6, len - 2, s * (width / 2 - 1.4), 0, 0.15, C.line).CanCollide = false
+		strip("Kerb", 1.2, len, s * (width / 2 + 0.6), 0, 0.32, C.concrete, Enum.Material.Concrete)
+	end
+	local dash = 0
+	while dash + 6 < len - 4 do
+		strip("CentreLine", 0.6, 6, 0, -len / 2 + 4 + dash + 3, 0.15, C.yellow).CanCollide = false
+		dash += 12
+	end
+end
+
+local function crosswalk(x: number, z: number, width: number, alongX: boolean)
+	for k = -3, 3 do
+		if alongX then
+			mark(2, width - 4, x + k * 3.4, z, C.white, 0.16)
+		else
+			mark(width - 4, 2, x, z + k * 3.4, C.white, 0.16)
+		end
+	end
 end
 
 local function sign(text: string, pos: Vector3, size: Vector3, yaw: number?, bg: string?, fg: string?): Part
@@ -171,7 +226,7 @@ local function lighting(theme)
 end
 
 -- Free strips between the test zones where scenery may go: { x0, x1, z0, z1 }
-local FREE = { { -100, -30, -160, -20 }, { 25, 65, -200, -70 }, { -125, 40, 95, 230 }, { -300, 250, 295, 340 }, { -300, 100, -340, -240 }, { 220, 258, -170, 70 } }
+local FREE = { { -100, -30, -160, -20 }, { 25, 65, -200, -70 }, { -125, -18, 95, 230 }, { 18, 40, 100, 230 }, { -300, 250, 324, 342 }, { -300, -20, -285, -240 }, { 20, 100, -285, -240 }, { 220, 258, -170, 12 } }
 
 local function scatter(count: number, gap: number, seed: number): { Vector3 }
 	local rng = Random.new(seed)
@@ -253,8 +308,24 @@ end
 function MapService.build(name: string?): (Folder, BasePart)
 	local theme = THEMES[name or ""] or THEMES["Test Grounds"]
 	MapService.current = if THEMES[name or ""] then name :: string else "Test Grounds"
-	C.grass, C.grassDark = theme.grass, theme.grassDark
+	C.grass, C.grassDark = theme.lawn, theme.outer
 	local previous = workspace:FindFirstChild("Map")
+	if previous and previous:GetAttribute("Prebuilt") == MapService.current and previous:FindFirstChild("Static") then
+		-- the place file ships with this map already built (tools/bake_place.luau): reuse it as-is,
+		-- so anything you change in Studio's editor is what players get
+		static = previous.Static :: Folder
+		props = previous:FindFirstChild("Props") :: Folder
+		lighting(theme)
+		MapService.stations = {}
+		for _, key in { "Sedan", "MonsterTruck", "Tank", "SmallPlane" } do
+			local st = static:FindFirstChild("Station" .. key)
+			if st then
+				table.insert(MapService.stations, { part = st, key = key })
+			end
+		end
+		previous:SetAttribute("Prebuilt", nil)
+		return previous, static:FindFirstChild("RailAnchor") :: BasePart
+	end
 	if previous then
 		previous:Destroy()
 	end
@@ -274,25 +345,45 @@ function MapService.build(name: string?): (Folder, BasePart)
 	local HALF = Config.Map.SIZE / 2
 
 	-- Ground ------------------------------------------------------------
-	block("Baseplate", Vector3.new(2048, 8, 2048), Vector3.new(0, -4, 0), C.grassDark, Enum.Material.Grass)
-	local field = pad("Sandbox", Config.Map.SIZE, Config.Map.SIZE, 0, 0, C.grass, 0.02, Enum.Material.Grass)
+	block("Baseplate", Vector3.new(2048, 8, 2048), Vector3.new(0, -4, 0), theme.outer, Enum.Material.Ground)
+	local field = pad("Sandbox", Config.Map.SIZE, Config.Map.SIZE, 0, 0, theme.ground, 0.02, Enum.Material.SmoothPlastic)
 	field.CanCollide = false
-	for _, s in { -1, 1 } do -- low berm + invisible wall so ground vehicles cannot get lost
-		block("Berm", Vector3.new(Config.Map.SIZE + 24, 5, 12), Vector3.new(0, 2.5, s * (HALF + 6)), C.grassDark, Enum.Material.Grass)
-		block("Berm", Vector3.new(12, 5, Config.Map.SIZE + 24), Vector3.new(s * (HALF + 6), 2.5, 0), C.grassDark, Enum.Material.Grass)
+	for _, s in { -1, 1 } do -- low concrete wall + invisible fence so ground vehicles cannot get lost
+		block("Berm", Vector3.new(Config.Map.SIZE + 24, 4, 3), Vector3.new(0, 2, s * (HALF + 6)), C.concreteDark, Enum.Material.Concrete)
+		block("Berm", Vector3.new(3, 4, Config.Map.SIZE + 24), Vector3.new(s * (HALF + 6), 2, 0), C.concreteDark, Enum.Material.Concrete)
 		local w1 = block("Boundary", Vector3.new(Config.Map.SIZE + 24, 34, 2), Vector3.new(0, 17, s * (HALF + 11)), C.white)
 		local w2 = block("Boundary", Vector3.new(2, 34, Config.Map.SIZE + 24), Vector3.new(s * (HALF + 11), 17, 0), C.white)
 		w1.Transparency, w2.Transparency = 1, 1
 	end
-	for k = -14, 14 do -- big ground tiles, the signature look of the reference sandboxes
-		mark(0.5, Config.Map.SIZE, k * 24, 0, theme.line, 0.05)
-		mark(Config.Map.SIZE, 0.5, 0, k * 24, theme.line, 0.05)
+	-- 48-stud floor tiles: a soft two-tone checker (one part per dark tile row-run) plus thin seams
+	local T = 48
+	local n = math.floor(Config.Map.SIZE / T / 2)
+	for i = -n, n - 1 do
+		for j = -n, n - 1 do
+			if (i + j) % 2 == 0 then
+				local t = pad("Tile", T, T, (i + 0.5) * T, (j + 0.5) * T, theme.tile2, 0.035)
+				t.CanCollide, t.CanQuery = false, false
+			end
+		end
+	end
+	for k = -n, n do
+		mark(0.4, Config.Map.SIZE, k * T, 0, theme.tile, 0.05)
+		mark(Config.Map.SIZE, 0.4, 0, k * T, theme.tile, 0.05)
+	end
+	-- a few lawns, so the ground is mostly concrete with green accents rather than a green field
+	for _, l in { { -90, -190, 60, 50 }, { 60, -250, 70, 50 }, { -60, 160, 60, 110 }, { 80, -110, 30, 60 }, { 200, -40, 30, 60 } } do
+		local lawn = pad("Lawn", l[3], l[4], l[1], l[2], theme.lawn, 0.06, Enum.Material.Grass)
+		lawn.CanCollide = false
+		mark(l[3] + 1.2, 0.6, l[1], l[2] - l[4] / 2, C.concrete, 0.07)
+		mark(l[3] + 1.2, 0.6, l[1], l[2] + l[4] / 2, C.concrete, 0.07)
+		mark(0.6, l[4], l[1] - l[3] / 2, l[2], C.concrete, 0.07)
+		mark(0.6, l[4], l[1] + l[3] / 2, l[2], C.concrete, 0.07)
 	end
 	local rng = Random.new(3)
 	for i = 1, 14 do -- distant decorative hills
 		local a = i / 14 * math.pi * 2
 		local r, size = rng:NextNumber(620, 900), rng:NextNumber(160, 320)
-		local hill = block("Hill", Vector3.one * size, Vector3.new(math.cos(a) * r, -size * 0.28, math.sin(a) * r), C.grassDark, Enum.Material.Grass)
+		local hill = block("Hill", Vector3.one * size, Vector3.new(math.cos(a) * r, -size * 0.28, math.sin(a) * r), theme.hill, Enum.Material.Ground)
 		hill.Shape = Enum.PartType.Ball
 	end
 
@@ -576,6 +667,33 @@ function MapService.build(name: string?): (Folder, BasePart)
 		mark(12, 1, 335, z, C.yellow)
 	end
 	foamCubes(335, -306, 2, 3, 6, true)
+
+	-- Road network linking every zone ------------------------------------------------------------
+	road("NorthRoad", Vector2.new(-310, -300), Vector2.new(258, -300), 22)
+	road("SouthRoad", Vector2.new(-310, 306), Vector2.new(258, 306), 22)
+	road("WestAvenue", Vector2.new(-286, 0), Vector2.new(-66, 0), 20)
+	road("EastAvenue", Vector2.new(66, 30), Vector2.new(266, 30), 20)
+	road("NorthLink", Vector2.new(0, -166), Vector2.new(0, -289), 20)
+	road("SouthLink", Vector2.new(0, 81), Vector2.new(0, 295), 20)
+	crosswalk(-80, 0, 20, true)
+	crosswalk(80, 30, 20, true)
+	crosswalk(0, 95, 20, false)
+	crosswalk(0, -180, 20, false)
+	-- stunt jump on the north road: kicker, a 40-stud gap over parked containers, landing ramp
+	rampAt("JumpKicker", 18, 9, 30, -190, -300, Vector3.new(1, 0, 0), C.yellow)
+	rampAt("JumpLanding", 18, 7, 34, -86, -300, Vector3.new(-1, 0, 0), C.yellow)
+	for k = 0, 2 do
+		block("GapContainer", Vector3.new(10, 6, 20), Vector3.new(-148 + k * 12, 3, -300), ({ C.red, C.blue, "#3d8f4a" })[k + 1], Enum.Material.Metal)
+	end
+	sign("JUMP!", Vector3.new(-200, 8, -315), Vector3.new(12, 3, 0.5), 0)
+	-- road ramps on the south road: two small kickers to launch into the high-speed track run-off
+	rampAt("SouthKicker", 16, 4, 20, 120, 306, Vector3.new(1, 0, 0), C.red)
+	rampAt("SouthKicker2", 16, 6, 24, -120, 306, Vector3.new(-1, 0, 0), C.red)
+	-- traffic props along the avenues
+	for _, p in { { -200, 12 }, { -140, 12 }, { 120, 42 }, { 200, 42 } } do
+		block("LampPost", Vector3.new(0.6, 16, 0.6), Vector3.new(p[1], 8, p[2]), C.dark, Enum.Material.Metal)
+		block("LampHead", Vector3.new(3.4, 0.5, 1.2), Vector3.new(p[1], 16, p[2] - 1.4), "#fff3c4", Enum.Material.Neon).CanCollide = false
+	end
 
 	MapService.scenery(theme.scenery)
 

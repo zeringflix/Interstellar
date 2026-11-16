@@ -107,7 +107,7 @@ end
 -- .blend files) records where each mesh's centre belongs relative to the vehicle origin, and its size.
 local function applyMeshes(model: Model, key: string, root: BasePart, parts, wheelParts, spec, visualOnly: boolean?): boolean
 	local library = game:GetService("ReplicatedStorage"):FindFirstChild("VehicleMeshes")
-	local source = library and library:FindFirstChild(key)
+	local source = library and library:FindFirstChild(key, true) -- works whether the import sits in the folder or IS the folder
 	local info = MeshInfo[key]
 	if not source or not info then
 		return false

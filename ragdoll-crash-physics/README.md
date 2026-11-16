@@ -2,6 +2,17 @@
 
 A Roblox vehicle-crash sandbox: spawn a vehicle, drive or fly it into grey ragdoll test dummies, read what broke, reset, repeat.
 
+## Open it in Roblox Studio
+
+1. Open **`RagdollCrashPhysics.rbxlx`** in Roblox Studio (File > Open from File). Every script, the UI, the audio, the dummies and the whole Test Grounds map are already in it. The map sits in `Workspace.Map`, so you can see and edit it before pressing Play; the server uses that map as-is.
+2. Add the detailed vehicle models (one import): File > **Import 3D** > `blender/out/AllVehicles.glb`, keep the default options, then drag the imported model into `ReplicatedStorage.VehicleMeshes`. Each vehicle switches from its blocky stand-in to the detailed model automatically. (Single vehicles: `blender/out/<Vehicle>.glb`.)
+3. File > Publish to Roblox. In Game Settings set **Max Players = 1** (one sandbox per server), and under Security turn on **Allow HTTP requests** only if you add web features later (not needed now).
+4. Optional: paste your uploaded Folk UI / icon pack image ids into `UIAssets` (StarterPlayer > StarterPlayerScripts > Client > UIAssets).
+
+Rebuild the place from source with `cd roblox && rojo build -o place.rbxl && lune run tools/bake_place.luau place.rbxl ../RagdollCrashPhysics.rbxlx`.
+
+![map](docs/map_view.png)
+
 | Folder | What is in it |
 |---|---|
 | `roblox/` | The game: a Rojo project (`rojo build -o RagdollCrashPhysics.rbxlx`), 29 Luau modules, tests |
@@ -37,7 +48,7 @@ What was taken from the research: one-player servers, grey Robloxian-style dummi
 - **Read-out**: one two-line text bar at the bottom of the screen, never more than three facts: `Left Knee` / `Leg shattered · Knocked out · 95% blood left`. Pile-ups collapse to `6 dummies hit` / `3 down · 2 knocked out · 1 dead`.
 - **Vehicles**: sedan, sports car, police car, muscle car, pickup, monster truck, city bus, dump truck, tank, armoured truck, light plane, cargo plane, helicopter, steam train, bulldozer, go-kart, rocket sled. Cars, tracked vehicles, planes, the helicopter and the train each have their own handling model.
 - **Crashes**: hitting a wall hard (or the ground, in an aircraft) ends in an explosion: fireball, smoke, sparks, shockwave, a physical blast that throws nearby dummies and props, and a burning wreck.
-- **Maps**: Test Grounds, Downtown and Desert Range share one zone layout (plaza, dummy field, crash track, ramps, airfield, heavy-vehicle field, destruction yard). A ballasted railway runs the length of the map past a station and a level crossing and ends in a buffer stop.
+- **Maps**: Test Grounds, Downtown and Desert Range share one zone layout (plaza, dummy field, crash track, ramps, airfield, heavy-vehicle field, destruction yard). The floor is a two-tone tiled concrete test ground like the researched sandboxes, with a few lawns instead of a green field. Asphalt roads with kerbs, lane markings and crossings link every zone; the north road has a stunt jump over parked containers and the south road has kickers. A ballasted railway runs the length of the map past a station and a level crossing and ends in a buffer stop.
 - **UI**: Shop / Vehicles / Sandbox tiles on the left, round Settings / Dummy / Controls buttons on top, packs and Revive / Reset on the right, key binds bottom right while driving (a slim strip under the top row on phones and tablets). Gamepad glyphs replace key caps when a controller is used.
 - **Replay**: the last 10 seconds can be watched at 0.25x-1x. It plays recorded transforms on local copies, so it cannot change the simulation.
 
@@ -63,6 +74,7 @@ Roblox Studio cannot run in the environment this was built in, so **nothing has 
 | `damage_spec` | 86 | Damage curve, regions, statuses, blood, revive |
 | `builders_spec` | 914 | All 17 vehicles and 5 dummy types build against the Roblox API database |
 | `map_spec` | 210 | Map builds; every spawn and preset dummy stands on something solid |
+| `place_spec` | 12 | The finished place file has every script in the right container, the baked map, and the server reuses it |
 | `integration_spec` | 116 | The real server and client scripts run end to end on a mock engine: boot, a 56 mph crash, one hit per dummy, crash report, explosion, revive, resets without leaks, presets, limits, hostile requests, events, body and map switching, the whole UI with every button pressed |
 
-Not verified, and needing a pass in Studio: vehicle handling feel and stability, ragdoll joint limits on the Robloxian rig, the `FaceControls` expressions, the look of the particle effects, hinge axis directions (wheels, propellers, turret), the orientation of imported meshes, and frame rate. The map is built for speed (streaming on, shadows off for flat and small parts, no touch events, about 730 static parts and 175 loose props, capped dummies) but the 100 fps target has not been measured.
+Not verified, and needing a pass in Studio: vehicle handling feel and stability, ragdoll joint limits on the Robloxian rig, the `FaceControls` expressions, the look of the particle effects, hinge axis directions (wheels, propellers, turret), the orientation and colours of the imported meshes, and frame rate. The map is built for speed (streaming on, shadows off for flat and small parts, no touch events, about 730 static parts and 175 loose props, capped dummies) but the 100 fps target has not been measured.
