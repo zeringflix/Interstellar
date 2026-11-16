@@ -60,7 +60,7 @@ Config.Damage = {
 	BLOOD_FLOOR = 40,    -- bleeding stops by itself here (clotting); below 55% the dummy passes out
 	CRITICAL_HEALTH = 25,
 	STAGGER_TIME = 1.3,
-	HIT_FLASH_TIME = 1.2,
+	HIT_FLASH_TIME = 2.0,
 	RECOVER_TIME = 1.6,
 	DOWN_TIME = { 2.5, 6 }, -- seconds a conscious, healthy-legged dummy stays down (min, max by damage)
 }
@@ -69,11 +69,12 @@ Config.Damage = {
 Config.Score = { LIGHT = 50, MEDIUM = 150, HEAVY = 400, CRITICAL = 800, CHAIN = 120, PROP = 15, REPEAT_WINDOW = 4 }
 
 -- Replay ----------------------------------------------------------------
-Config.Replay = { SECONDS = 10, HZ_HIGH = 30, HZ_LOW = 15, SPEED = 0.25 }
+Config.Replay = { SECONDS = 10, HZ_HIGH = 20, HZ_LOW = 10, SPEED = 0.25 }
 
 -- Map -------------------------------------------------------------------
 Config.Map = {
 	SIZE = 700,
+	Names = { "Test Grounds", "Downtown", "Desert Range" },
 	Spawns = { -- position (ground level) and yaw in degrees; yaw 0 faces -Z
 		Road = { 0, 0, 34, 0 },
 		TankField = { -220, 0, 185, 0 },
@@ -92,6 +93,18 @@ Config.Map = {
 		{ "Destruction Yard", 120, 60 },
 	},
 }
+
+-- Shop entries. id = 0 means "not on sale yet" (the button says SOON). Create the game passes /
+-- developer products on the Creator Dashboard and paste their ids here to switch them on.
+Config.Shop = {
+	{ name = "Explosion Pack", text = "Bigger crash explosions and the Blast event with no cooldown.", price = 34, id = 0, kind = "pass", color = "#ff7a2e" },
+	{ name = "Heavy Garage", text = "Early access to new heavy vehicles as they are added.", price = 79, id = 0, kind = "pass", color = "#ffd24a" },
+	{ name = "Dummy Army", text = "Raises the dummy limit and unlocks Dummy Rain x2.", price = 200, id = 0, kind = "pass", color = "#7dff8a" },
+	{ name = "VIP", text = "All of the above plus a VIP name tag.", price = 199, id = 0, kind = "pass", color = "#ff4d8d" },
+}
+
+-- Crash explosions: velocity lost in one physics step (studs/s) that turns a crash into a fireball.
+Config.Explosion = { GROUND_DV = 70, AIRCRAFT_DV = 45, RADIUS = 30, COOLDOWN = 2 }
 
 Config.StatusColors = {
 	HEALTHY = "#7ee08a", HIT = "#fff3b0", STAGGERING = "#ffd84a", DOWN = "#ff9a3c", LIMPING = "#ffc46b",

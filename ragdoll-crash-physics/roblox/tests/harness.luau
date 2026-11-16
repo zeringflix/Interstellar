@@ -22,7 +22,9 @@ end
 
 function Harness.new(useRoblox: boolean, extraGlobals: { [string]: any }?)
 	local env = {}
-	local game = { ReplicatedStorage = { Shared = node(ROOT .. "/shared") } }
+	local game = { ReplicatedStorage = { Shared = node(ROOT .. "/shared"), FindFirstChild = function()
+		return nil
+	end } }
 	function game:GetService(name)
 		return (extraGlobals and extraGlobals.services and extraGlobals.services[name]) or game[name] or { FindFirstChild = function()
 			return nil

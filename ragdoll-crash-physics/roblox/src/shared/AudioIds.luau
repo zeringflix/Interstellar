@@ -38,7 +38,8 @@ return {
 		crashMedium = { id(7340406573), id(7340406427), id(7340406603), id(9116673678) }, -- Audio/car crash HARD1-3 | RCarCrash | 1s ; Metal Impact Heavy Clunking Hits Scraping 1 | ProSoundEffects
 		crashHeavy = { id(7340406550), id(7340406466), id(7340406517), id(7340406496) }, -- Audio/car crash HARD4-7 | RCarCrash | 1s
 		glass = { id(118987440163311), id(139826391278483) }, -- glass_shatter_01 / _09 | Robloxianr6o6c6m1y | 1-2s
-		debris = { id(9125672786) },     -- Metal Impact Small Bar Thrown Bouncing Crash | ProSoundEffects | 6s
+		debris = { id(9125672786) },
+		explosion = { id(9114362625) },  -- Explosions 2 (SFX) | ProSoundEffects | 3s     -- Metal Impact Small Bar Thrown Bouncing Crash | ProSoundEffects | 6s
 		-- ragdoll body impacts
 		bodyLight = { id(9113480917), id(9113480915) },   -- Body Fall Thud 1/2 (SFX) | ProSoundEffects | <1s
 		bodyMedium = { id(3765689841), id(9117972730), id(9117972870) }, -- Cartoon Bonk | Phantomazing | 1s ; Punch Thud 1/2 | ProSoundEffects

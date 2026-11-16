@@ -21,8 +21,9 @@ local function check(name: string, cond: any, detail: any?)
 end
 local function step(seconds: number, dt: number?)
 	dt = dt or 1 / 60
-	for _ = 1, math.floor(seconds / dt + 0.5) do
+	for i = 1, math.floor(seconds / dt + 0.5) do
 		Mock.clock += dt
+		Mock.sync(i % 30 == 1)
 		world.heartbeat:Fire(dt)
 	end
 end
@@ -71,6 +72,7 @@ local function driveThrough(root, x: number, zFrom: number, zTo: number, speed: 
 		step(dt)
 	end
 end
+Mock.sync(true)
 step(0.1)
 driveThrough(carRoot, -3, 0, -60, 90) -- 8.6 wide car centred on x = -3 covers the dummies at x = -3 only... and brushes neighbours
 local impacts = fired("Impact")
@@ -119,6 +121,16 @@ if r then
 end
 check("untouched dummy far away is still HEALTHY", Dummy.dummies[6].model:GetAttribute("Status") == "HEALTHY", Dummy.dummies[6].model:GetAttribute("Status"))
 
+-- TEST: a sudden stop from 56 mph is a crash into something solid -> explosion (far from the dummies here)
+Mock.fired = {}
+car:PivotTo(CFrame.new(300, 0.3, 320))
+step(0.05)
+carRoot.AssemblyLinearVelocity = Vector3.new(0, 0, -2)
+step(0.1)
+check("hard crash: vehicle explodes exactly once", #fired("Explosion") == 1 and car:GetAttribute("Exploded") == true, #fired("Explosion"))
+check("hard crash: clients get the crash event + position", #fired("VehicleCrash") >= 1 and typeof(fired("Explosion")[1].args[1]) == "Vector3")
+check("hard crash: cosmetic damage maxed", car:GetAttribute("DamageLevel") == 3)
+
 -- continuous contact: park the car on a fresh dummy and push slowly -> no damage
 local before = Dummy.dummies[6].state.health
 carRoot.AssemblyLinearVelocity = Vector3.new(0, 0, -4)
@@ -149,13 +161,21 @@ if reports[1] then
 end
 
 -- TEST E: the tank hurts more than the sedan at the same speed and stays in the heavy field
-local fire = remotes.Request.OnServerEvent
+local fireSignal = remotes.Request.OnServerEvent
+local fire = { Fire = function(_, ...)
+	Mock.sync(true)
+	fireSignal:Fire(...)
+	Mock.sync(true)
+end }
 fire:Fire(player, "SpawnVehicle", "Tank")
 Mock.clock += 1
 local tank = VehicleService.current(player)
 check("tank spawned in the tank field", tank and tank.Name == "Tank" and tank.PrimaryPart.CFrame.Position.X < -150, tank and tank.PrimaryPart.CFrame.Position)
 check("vehicle limit respected", #vehicles:GetChildren() <= Config.MAX_VEHICLES, #vehicles:GetChildren())
-check("tank far heavier than the sports car", tank.PrimaryPart.AssemblyMass > 15 * carRoot.AssemblyMass)
+local function specMass(root)
+	return root.Size.X * root.Size.Y * root.Size.Z * root.CustomPhysicalProperties.Density
+end
+check("tank far heavier than the sports car", specMass(tank.PrimaryPart) > 15 * specMass(carRoot), { specMass(tank.PrimaryPart), specMass(carRoot) })
 check("requesting an unknown vehicle is ignored", (function()
 	fire:Fire(player, "SpawnVehicle", "Battleship")
 	fire:Fire(player, "SpawnVehicle", 12345)
@@ -245,12 +265,13 @@ check("rate limit drops the burst request", Dummy.count() == 6, Dummy.count())
 -- grab tool
 Mock.clock += 1
 local gid = next(Dummy.dummies)
+player.Character.PrimaryPart.CFrame = CFrame.new(0, 3, -20)
 fire:Fire(player, "Grab", gid)
 local g = Dummy.dummies[gid]
 check("grab: dummy goes limp and is held by an AlignPosition", g.state.ragdolled and g.torso:FindFirstChildOfClass("AlignPosition") ~= nil)
 fire:Fire(player, "GrabMove", Vector3.new(9999, 9999, 9999))
 local target = g.torso:FindFirstChildOfClass("AlignPosition").Attachment1
-check("grab: target clamped near the player", (target.WorldPosition - Vector3.new(12, 3, 52)).Magnitude <= 120, target.WorldPosition)
+check("grab: target clamped near the player", (target.WorldPosition - Vector3.new(0, 3, -20)).Magnitude <= 120, target.WorldPosition)
 Mock.clock += 1
 fire:Fire(player, "Release")
 check("grab: released cleanly", g.torso:FindFirstChildOfClass("AlignPosition") == nil)
@@ -323,6 +344,68 @@ for _, s in { "HEALTHY", "HIT", "STAGGERING", "DOWN", "LIMPING", "CRAWLING", "UN
 	end
 end
 check("all 11 statuses were produced by real server state", #missing == 0, table.concat(missing, ","))
+-- blood, injuries and hit-part labels come through the wire format
+local rec = nil
+for _, f in fired("Impact") do
+	for _, r in f.args[1] do
+		if r.bleeding then
+			rec = r
+		end
+	end
+end
+check("records carry part label, injury, condition and blood %", rec and typeof(rec.part) == "string" and typeof(rec.injury) == "string"
+	and typeof(rec.condition) == "string" and rec.blood < 100 and rec.blood >= Config.Damage.BLOOD_FLOOR, rec)
+check("bleeding lowers blood % over time and it is published", dd.model:GetAttribute("Blood") < 100 and dd.model:GetAttribute("Blood") >= Config.Damage.BLOOD_FLOOR, dd.model:GetAttribute("Blood"))
+check("condition text published", typeof(dd.model:GetAttribute("Condition")) == "string")
+-- events, body switching, map switching
+Mock.clock += 3
+Mock.fired = {}
+fire:Fire(player, "Event", "Blast")
+check("Blast event explodes in front of the player", #fired("Explosion") == 1)
+Mock.clock += 3
+local nBefore = Dummy.count()
+fire:Fire(player, "Event", "DummyRain")
+check("Dummy Rain adds dummies up to the cap", Dummy.count() > nBefore and Dummy.count() <= Dummy.limit, Dummy.count())
+Mock.clock += 3
+fire:Fire(player, "Event", "ZeroG")
+check("Zero-G lowers gravity", ws.Gravity < 50, ws.Gravity)
+ws.Gravity = 196.2
+Mock.clock += 3
+fire:Fire(player, "Event", "ReviveAll")
+local allUp = true
+for _, d in Dummy.dummies do
+	if d.state.dead or d.state.health < d.state.maxHealth then
+		allUp = false
+	end
+end
+check("Revive All restores every dummy", allUp)
+Mock.clock += 3
+fire:Fire(player, "SetBody", "Blocky")
+fire:Fire(player, "SetBody", "NotABody")
+check("body type switch rebuilds the dummies", Config.DummyBody == "Blocky" and Dummy.count() > 0)
+for _, name in { "Downtown", "Desert Range", "Test Grounds" } do
+	Mock.clock += 5
+	fire:Fire(player, "LoadMap", name)
+	local MapService = world.require(world.server.MapService)
+	check("map loads: " .. name, MapService.current == name and ws:FindFirstChild("Map") ~= nil and Dummy.count() == 20 and #ws.Vehicles:GetChildren() == 1, MapService.current)
+	local rail = false
+	for _, d in ws.Map.Static:GetChildren() do
+		if d.Name == "BufferBeam" then
+			rail = true
+		end
+	end
+	check("map has the dead-end buffer stop: " .. name, rail)
+end
+local maps = 0
+for _, c in ws:GetChildren() do
+	if c.Name == "Map" then
+		maps += 1
+	end
+end
+check("old maps are destroyed on switch", maps == 1, maps)
+Mock.clock += 1
+fire:Fire(player, "SpawnVehicle", "Train")
+check("train re-attaches to the new map's rail", VehicleService.current(player).PrimaryPart:FindFirstChild("Rail") ~= nil)
 check("no script warnings on the server", (Mock.warnings or 0) == 0, Mock.warnings)
 
 print(string.format("integration (server): %d passed, %d failed", passed, failed))

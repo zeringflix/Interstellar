@@ -69,6 +69,10 @@ function VehicleService.init(vehicleFolder: Folder, anchor: BasePart)
 	end)
 end
 
+function VehicleService.setRailAnchor(anchor: BasePart)
+	railAnchor = anchor
+end
+
 function VehicleService.current(player: Player): Model?
 	for i = #order, 1, -1 do
 		if order[i].Parent and order[i]:GetAttribute("Owner") == player.UserId then

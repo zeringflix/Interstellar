@@ -217,7 +217,7 @@ function draw(f, now: number)
 			ox, oy = math.cos(now * 9 + i) * 9, math.sin(now * 9 + i) * 4 + 2
 		end
 		eye.pupil.Position = UDim2.new(0.5, ox, 0.5, oy)
-		local showX = e.x and f.t >= 0.5
+		local showX = e.x == true and f.t >= 0.5
 		eye.eye.Visible = not showX
 		eye.line.Visible = not showX
 		eye.x[1].Visible, eye.x[2].Visible = showX, showX
@@ -363,7 +363,9 @@ end
 local highlight: Highlight
 function Visuals.select(model: Model?)
 	Visuals.selected = model
-	highlight.Adornee = model
+	if model then
+		highlight.Adornee = model
+	end
 	highlight.Enabled = model ~= nil
 end
 

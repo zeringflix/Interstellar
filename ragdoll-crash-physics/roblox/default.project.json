@@ -3,25 +3,49 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Shared": { "$path": "src/shared" }
+      "Shared": {
+        "$path": "src/shared"
+      }
     },
     "ServerScriptService": {
-      "Server": { "$path": "src/server" }
+      "Server": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
-      "$properties": { "CameraMaxZoomDistance": 120 },
+      "$properties": {
+        "CameraMaxZoomDistance": 120
+      },
       "StarterPlayerScripts": {
-        "Client": { "$path": "src/client" }
+        "Client": {
+          "$path": "src/client"
+        }
       }
     },
     "Players": {
-      "$properties": { "CharacterAutoLoads": true }
+      "$properties": {
+        "CharacterAutoLoads": true
+      }
     },
     "Workspace": {
-      "$properties": { "Gravity": 196.2 }
+      "$properties": {
+        "Gravity": 196.2,
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 256,
+        "StreamingTargetRadius": 900,
+        "StreamOutBehavior": "LowMemory"
+      }
     },
     "SoundService": {
-      "$properties": { "RespectFilteringEnabled": true }
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "ShadowMap",
+        "GlobalShadows": true
+      }
     }
   }
 }

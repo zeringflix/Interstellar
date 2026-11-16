@@ -9,8 +9,17 @@ local Config = require(game.ReplicatedStorage.Shared.GameConfig)
 local MapService = {}
 local static: Folder, props: Folder
 
+-- Three maps share the same test-zone layout (so every preset, spawn and zone teleport works on
+-- all of them) and differ in ground, palette, lighting and scenery.
+local THEMES = {
+	["Test Grounds"] = { grass = "#58c96a", grassDark = "#3fae55", line = "#49b85c", scenery = "trees", clock = 13.5, sky = { 199, 220, 255 } },
+	Downtown = { grass = "#9aa0a8", grassDark = "#7d838c", line = "#868c95", scenery = "city", clock = 16.2, sky = { 214, 222, 235 } },
+	["Desert Range"] = { grass = "#e0c48a", grassDark = "#c9a96b", line = "#d2b47a", scenery = "desert", clock = 11.0, sky = { 255, 236, 200 } },
+}
+MapService.current = "Test Grounds"
+
 local C = {
-	grass = "#73c25e", grassDark = "#5faa4d", concrete = "#b9bcc2", concreteDark = "#8f939b", asphalt = "#4a4d55",
+	grass = "#58c96a", grassDark = "#3fae55", concrete = "#b9bcc2", concreteDark = "#8f939b", asphalt = "#4a4d55",
 	line = "#e9eaee", yellow = "#ffd21a", red = "#e2342b", blue = "#2f7fe0", dirt = "#a8835a", brick = "#b5533c",
 	foam = "#ffb3d1", foamBlue = "#9ad7ff", white = "#f4f5f7", dark = "#30333a", steel = "#737a86", wood = "#b98a55",
 }
@@ -133,8 +142,8 @@ local function scaffold(x: number, z: number, levels: number)
 	end
 end
 
-local function lighting()
-	Lighting.ClockTime = 13.5
+local function lighting(theme)
+	Lighting.ClockTime = theme.clock
 	Lighting.GeographicLatitude = 35
 	Lighting.Brightness = 2.6
 	Lighting.Ambient = Color3.fromRGB(110, 115, 125)
@@ -150,14 +159,105 @@ local function lighting()
 	end
 	local atmo = Instance.new("Atmosphere")
 	atmo.Density, atmo.Offset, atmo.Haze, atmo.Glare = 0.22, 0.1, 0.6, 0
-	atmo.Color, atmo.Decay = Color3.fromRGB(199, 220, 255), Color3.fromRGB(180, 205, 240)
+	atmo.Color, atmo.Decay = Color3.fromRGB(theme.sky[1], theme.sky[2], theme.sky[3]), Color3.fromRGB(180, 205, 240)
 	atmo.Parent = Lighting
+	local oldClouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	if oldClouds then
+		oldClouds:Destroy()
+	end
 	local clouds = Instance.new("Clouds")
 	clouds.Cover, clouds.Density, clouds.Color = 0.55, 0.35, Color3.new(1, 1, 1)
 	clouds.Parent = workspace.Terrain
 end
 
-function MapService.build(): (Folder, BasePart)
+-- Free strips between the test zones where scenery may go: { x0, x1, z0, z1 }
+local FREE = { { -100, -30, -160, -20 }, { 25, 65, -200, -70 }, { -125, 40, 95, 230 }, { -300, 250, 295, 340 }, { -300, 100, -340, -240 }, { 220, 258, -170, 70 } }
+
+local function scatter(count: number, gap: number, seed: number): { Vector3 }
+	local rng = Random.new(seed)
+	local out = {}
+	local tries = 0
+	while #out < count and tries < count * 30 do
+		tries += 1
+		local r = FREE[rng:NextInteger(1, #FREE)]
+		local p = Vector3.new(rng:NextNumber(r[1], r[2]), 0, rng:NextNumber(r[3], r[4]))
+		local ok = true
+		for _, o in out do
+			if (o - p).Magnitude < gap then
+				ok = false
+				break
+			end
+		end
+		if ok then
+			table.insert(out, p)
+		end
+	end
+	return out
+end
+
+function MapService.scenery(kind: string)
+	local rng = Random.new(11)
+	if kind == "trees" then
+		for _, p in scatter(44, 16, 5) do -- low-poly trees: trunk + two leaf blocks
+			local h = rng:NextNumber(9, 15)
+			block("Trunk", Vector3.new(2, h, 2), p + Vector3.new(0, h / 2, 0), "#7a5230", Enum.Material.Wood)
+			local a = block("Leaves", Vector3.new(9, 6, 9), p + Vector3.new(0, h + 2, 0), "#3fae55")
+			a.CFrame = CFrame.new(p + Vector3.new(0, h + 2, 0)) * CFrame.Angles(0, rng:NextNumber(0, 1.5), 0)
+			local b = block("Leaves", Vector3.new(6, 5, 6), p + Vector3.new(0, h + 6.5, 0), "#58c96a")
+			b.CFrame = CFrame.new(p + Vector3.new(0, h + 6.5, 0)) * CFrame.Angles(0, rng:NextNumber(0, 1.5), 0)
+			a.CanCollide, b.CanCollide = false, false
+		end
+		for _, p in scatter(10, 40, 9) do -- grey concrete blocks and crates, as in the reference maps
+			block("ConcreteBlock", Vector3.new(14, 10, 14), p + Vector3.new(0, 5, 0), C.concrete, Enum.Material.Concrete)
+			loose("Crate", Vector3.new(5, 5, 5), p + Vector3.new(11, 2.7, 0), C.wood, 0.3, Enum.Material.WoodPlanks)
+		end
+	elseif kind == "city" then
+		local cols = { "#c9ced6", "#b7a99a", "#9db1c4", "#d6c9b0", "#a8adb5" }
+		for i, p in scatter(22, 34, 21) do -- office blocks with window bands and roof plant
+			local w, d, h = rng:NextNumber(20, 30), rng:NextNumber(20, 30), rng:NextNumber(28, 70)
+			block("Building", Vector3.new(w, h, d), p + Vector3.new(0, h / 2, 0), cols[i % #cols + 1], Enum.Material.Concrete)
+			for y = 8, h - 4, 8 do
+				block("Windows", Vector3.new(w + 0.3, 3.2, d + 0.3), p + Vector3.new(0, y, 0), "#2b3a4d", Enum.Material.Glass).CanCollide = false
+			end
+			block("RoofPlant", Vector3.new(w * 0.4, 3, d * 0.4), p + Vector3.new(0, h + 1.5, 0), C.steel, Enum.Material.Metal).CanCollide = false
+		end
+		for _, p in scatter(24, 22, 33) do -- street lamps
+			block("LampPost", Vector3.new(0.6, 16, 0.6), p + Vector3.new(0, 8, 0), C.dark, Enum.Material.Metal)
+			block("LampHead", Vector3.new(3.4, 0.5, 1.2), p + Vector3.new(1.4, 16, 0), "#fff3c4", Enum.Material.Neon).CanCollide = false
+		end
+		for _, p in scatter(18, 12, 44) do
+			loose("Cone", Vector3.new(1.6, 2.4, 1.6), p + Vector3.new(0, 1.3, 0), "#ff7a1a", 0.2)
+		end
+	else -- desert
+		for _, p in scatter(26, 22, 51) do -- sandstone outcrops
+			local sz = rng:NextNumber(10, 26)
+			local rock = block("Rock", Vector3.new(sz, sz * rng:NextNumber(0.6, 1.3), sz * rng:NextNumber(0.7, 1.2)), p + Vector3.new(0, sz * 0.25, 0), "#b98a5a", Enum.Material.Sandstone)
+			rock.CFrame = CFrame.new(p + Vector3.new(0, sz * 0.25, 0)) * CFrame.Angles(rng:NextNumber(-0.2, 0.2), rng:NextNumber(0, 3), rng:NextNumber(-0.2, 0.2))
+		end
+		for _, p in scatter(30, 14, 63) do -- saguaro cacti
+			local h = rng:NextNumber(7, 12)
+			local trunk = block("Cactus", Vector3.new(h, 1.8, 1.8), p + Vector3.new(0, h / 2, 0), "#4f8f4a")
+			trunk.Shape = Enum.PartType.Cylinder
+			trunk.CFrame = CFrame.new(p + Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			local arm = block("CactusArm", Vector3.new(3.4, 1.2, 1.2), p + Vector3.new(1.6, h * 0.55, 0), "#4f8f4a")
+			arm.Shape = Enum.PartType.Cylinder
+			arm.CanCollide = false
+		end
+		for _, p in scatter(6, 60, 71) do -- timber shacks
+			block("Shack", Vector3.new(16, 9, 12), p + Vector3.new(0, 4.5, 0), "#9a7146", Enum.Material.WoodPlanks)
+			block("ShackRoof", Vector3.new(18, 0.8, 14), p + Vector3.new(0, 9.4, 0), "#6b4a2c", Enum.Material.WoodPlanks).CanCollide = false
+		end
+	end
+end
+
+function MapService.build(name: string?): (Folder, BasePart)
+	local theme = THEMES[name or ""] or THEMES["Test Grounds"]
+	MapService.current = if THEMES[name or ""] then name :: string else "Test Grounds"
+	C.grass, C.grassDark = theme.grass, theme.grassDark
+	local previous = workspace:FindFirstChild("Map")
+	if previous then
+		previous:Destroy()
+	end
 	local map = Instance.new("Folder")
 	map.Name = "Map"
 	static = Instance.new("Folder")
@@ -166,7 +266,7 @@ function MapService.build(): (Folder, BasePart)
 	props = Instance.new("Folder")
 	props.Name = "Props"
 	props.Parent = map
-	lighting()
+	lighting(theme)
 	local old = workspace:FindFirstChild("Baseplate")
 	if old then
 		old:Destroy()
@@ -184,6 +284,10 @@ function MapService.build(): (Folder, BasePart)
 		local w2 = block("Boundary", Vector3.new(2, 34, Config.Map.SIZE + 24), Vector3.new(s * (HALF + 11), 17, 0), C.white)
 		w1.Transparency, w2.Transparency = 1, 1
 	end
+	for k = -14, 14 do -- big ground tiles, the signature look of the reference sandboxes
+		mark(0.5, Config.Map.SIZE, k * 24, 0, theme.line, 0.05)
+		mark(Config.Map.SIZE, 0.5, 0, k * 24, theme.line, 0.05)
+	end
 	local rng = Random.new(3)
 	for i = 1, 14 do -- distant decorative hills
 		local a = i / 14 * math.pi * 2
@@ -194,6 +298,7 @@ function MapService.build(): (Folder, BasePart)
 
 	-- Central spawn area --------------------------------------------------
 	pad("Plaza", 130, 80, 0, 40, C.concrete, 0.1, Enum.Material.Concrete)
+	pad("SpawnDeck", 34, 26, 12, 58, C.wood, 0.16, Enum.Material.WoodPlanks) -- wooden spawn deck
 	for i = -3, 3 do -- tile seams, like the tiled floors of the reference sandboxes
 		mark(0.3, 80, i * 16, 40, C.concreteDark, 0.13)
 	end
@@ -270,7 +375,7 @@ function MapService.build(): (Folder, BasePart)
 	for i = 0, 4 do
 		block("BarrierStripe", Vector3.new(0.2, 2, 4), Vector3.new(171.9, 3, 244 + i * 8), if i % 2 == 0 then C.yellow else "#15171c")
 	end
-	brickWall(110, 260, 7, 4, false)
+	brickWall(110, 260, 6, 4, false)
 	foamCubes(150, 260, 4, 2, 7, false)
 
 	-- Zone C: giant ramps -----------------------------------------------------
@@ -318,7 +423,7 @@ function MapService.build(): (Folder, BasePart)
 	mark(10, 3, 236, 150, C.yellow, 0.18)
 	signOnPosts("AIRFIELD", 262, 318, 30, 12)
 	-- aircraft crash target: padded wall + dummy deck near the far end of the runway
-	foamCubes(232, -270, 6, 4, 8, true)
+	foamCubes(232, -270, 5, 3, 8, true)
 	block("TargetDeck", Vector3.new(40, 1, 12), Vector3.new(232, 11.5, -252), C.yellow)
 	block("TargetDeckLeg", Vector3.new(3, 11, 3), Vector3.new(214, 5.5, -252), C.dark, Enum.Material.Metal)
 	block("TargetDeckLeg", Vector3.new(3, 11, 3), Vector3.new(250, 5.5, -252), C.dark, Enum.Material.Metal)
@@ -330,8 +435,8 @@ function MapService.build(): (Folder, BasePart)
 	for i, z in { 150, 110, 70 } do
 		block("Barrier", Vector3.new(14, 4, 3), Vector3.new(-260 + i * 14, 2, z), C.concreteDark, Enum.Material.Concrete)
 	end
-	brickWall(-220, 140, 8, 5, true)
-	brickWall(-190, 95, 6, 4, true)
+	brickWall(-220, 140, 6, 4, true)
+	brickWall(-190, 95, 5, 3, true)
 	foamCubes(-250, 95, 3, 3, 7, true)
 	for i, x in { -270, -240, -180 } do -- bumps
 		ramp("Bump", 18, 3, 12, x, 70 - i * 3, C.dirt).Material = Enum.Material.Ground
@@ -349,7 +454,7 @@ function MapService.build(): (Folder, BasePart)
 	block("Container", Vector3.new(10, 10, 26), Vector3.new(88, 15.2, 170), C.white, Enum.Material.Metal)
 	block("Container", Vector3.new(10, 10, 26), Vector3.new(106, 15.2, 170), C.red, Enum.Material.Metal)
 	loose("LooseContainer", Vector3.new(10, 10, 22), Vector3.new(150, 5.3, 165), C.blue, 0.25, Enum.Material.Metal)
-	brickWall(100, 110, 8, 5, true)
+	brickWall(100, 110, 6, 4, true)
 	foamCubes(150, 110, 3, 2, 12, true)
 	for i = 0, 3 do
 		block("JerseyBarrier", Vector3.new(12, 4, 3), Vector3.new(70 + i * 14, 2, 90), C.concrete, Enum.Material.Concrete)
@@ -374,23 +479,94 @@ function MapService.build(): (Folder, BasePart)
 		rope.Parent = beam
 	end
 
-	-- Railway (train) -----------------------------------------------------------------
+	-- Railway: ballasted track that runs the length of the map and ENDS in a buffer stop ----------
 	local RX = -330
-	pad("RailBed", 16, 640, RX, 0, "#8a7a66", 0.1, Enum.Material.Slate)
-	for z = -310, 310, 12 do
-		local s = pad("Sleeper", 13, 2.4, RX, z, "#5c4630", 0.3, Enum.Material.Wood)
+	pad("BallastBase", 19, 640, RX, 0, "#77705f", 0.22, Enum.Material.Slate)
+	pad("BallastTop", 14, 640, RX, 0, "#8a8372", 0.5, Enum.Material.Slate)
+	for z = -316, 316, 4 do -- timber sleepers
+		local s = block("Sleeper", Vector3.new(11.5, 0.5, 1.5), Vector3.new(RX, 0.55, z), "#4d3a28", Enum.Material.Wood)
 		s.CanCollide = false
 	end
-	for _, dx in { -4.2, 4.2 } do
-		local rail = block("RailSteel", Vector3.new(0.8, 0.5, 640), Vector3.new(RX + dx, 0.55, 0), C.steel, Enum.Material.Metal)
-		rail.CanCollide = false
+	for _, dx in { -4.2, 4.2 } do -- flat-bottom rail: foot, web, head
+		for _, r in { { 1.2, 0.14, 0.87, "#5d6169" }, { 0.3, 0.55, 1.2, "#5d6169" }, { 0.62, 0.3, 1.6, "#b9bec6" } } do
+			local rail = block("Rail", Vector3.new(r[1], r[2], 640), Vector3.new(RX + dx, r[3], 0), r[4], Enum.Material.Metal)
+			rail.CanCollide = false
+		end
+		for z = -300, 300, 40 do -- fishplates at the rail joints
+			block("Fishplate", Vector3.new(0.5, 0.4, 3), Vector3.new(RX + dx, 1.2, z), "#3a3d43", Enum.Material.Metal).CanCollide = false
+		end
 	end
-	pad("Crossing", 60, 20, RX + 14, 0, C.asphalt, 0.32, Enum.Material.Asphalt)
-	for i = -2, 2 do
-		mark(4, 16, RX + i * 5, 0, if i % 2 == 0 then C.yellow else C.asphalt, 0.36)
+	-- dead end: buffer stop built from rail, with a sand drag in front of it
+	local END = -318
+	for _, dx in { -4.2, 4.2 } do
+		for _, a in { { 0, 0 }, { 28, 2.2 } } do
+			local leg = block("BufferLeg", Vector3.new(0.7, 6.5, 0.7), Vector3.new(RX + dx, 3.6, END + a[2]), "#8b1a16", Enum.Material.Metal)
+			leg.CFrame = CFrame.new(RX + dx, 3.6, END + a[2] + (if a[1] > 0 then 1.4 else 0)) * CFrame.Angles(math.rad(a[1]), 0, 0)
+		end
+	end
+	block("BufferBeam", Vector3.new(12, 1.6, 1.2), Vector3.new(RX, 5.6, END), C.red, Enum.Material.Metal)
+	for k = -2, 2 do
+		block("BufferStripe", Vector3.new(1.2, 1.62, 1.22), Vector3.new(RX + k * 2.4, 5.6, END), C.white, Enum.Material.Metal).CanCollide = false
+	end
+	local lamp = block("BufferLamp", Vector3.new(0.9, 0.9, 0.6), Vector3.new(RX, 7.0, END + 0.4), "#ff2b2b", Enum.Material.Neon)
+	lamp.Shape = Enum.PartType.Cylinder
+	lamp.CFrame = CFrame.new(RX, 7.0, END + 0.4) * CFrame.Angles(0, math.rad(90), 0)
+	block("SandDrag", Vector3.new(13, 1.4, 16), Vector3.new(RX, 0.9, END + 12), "#d9c08a", Enum.Material.Sand).CanCollide = false
+	block("EndWall", Vector3.new(16, 9, 2), Vector3.new(RX, 4.5, END - 3), C.concreteDark, Enum.Material.Concrete)
+	sign("END OF TRACK", Vector3.new(RX + 9.5, 6, END + 6), Vector3.new(7, 2.4, 0.4), 0, C.red, C.white)
+	block("SignPost", Vector3.new(0.5, 6, 0.5), Vector3.new(RX + 9.5, 3, END + 6), C.dark, Enum.Material.Metal)
+	-- level crossing: road deck, crossbucks, warning lights, raised barrier arms
+	pad("Crossing", 60, 20, RX + 14, 0, C.asphalt, 0.62, Enum.Material.Asphalt)
+	for _, dx in { -1.4, 1.4 } do
+		mark(1.0, 20, RX + dx * 3, 0, C.yellow, 0.66)
+	end
+	for _, sz in { -1, 1 } do
+		local px, pz = RX + sz * 9, sz * 12
+		block("CrossPost", Vector3.new(0.6, 13, 0.6), Vector3.new(px, 6.5, pz), C.white, Enum.Material.Metal)
+		for _, rot in { 35, -35 } do
+			local arm = block("Crossbuck", Vector3.new(7, 1.1, 0.25), Vector3.new(px, 11.5, pz), C.white)
+			arm.CFrame = CFrame.new(px, 11.5, pz) * CFrame.Angles(0, math.rad(90), math.rad(rot))
+			arm.CanCollide = false
+		end
+		for _, dz in { -1.3, 1.3 } do
+			local l = block("CrossLight", Vector3.new(0.4, 1.3, 1.3), Vector3.new(px, 8.6, pz + dz), "#ff2b2b", Enum.Material.Neon)
+			l.Shape = Enum.PartType.Cylinder
+			l.CanCollide = false
+		end
+		block("GateBase", Vector3.new(1.6, 4, 1.6), Vector3.new(px + sz * 3, 2, pz), C.dark, Enum.Material.Metal)
+		local gate = block("GateArm", Vector3.new(0.5, 22, 0.5), Vector3.new(px + sz * 3, 14, pz), C.red)
+		gate.CanCollide = false
+		for k = 0, 4 do
+			block("GateStripe", Vector3.new(0.52, 2.2, 0.52), Vector3.new(px + sz * 3, 5.5 + k * 4.4, pz), C.white).CanCollide = false
+		end
 	end
 	signOnPosts("CRASH TEST CROSSING", RX + 36, -16, 40, 12, 90)
-	block("BufferStop", Vector3.new(12, 8, 4), Vector3.new(RX, 4, -316), C.red, Enum.Material.Metal)
+	-- station halt with canopy, signal and line-side poles
+	block("Platform", Vector3.new(12, 2.4, 70), Vector3.new(RX + 14, 1.2, 150), C.concrete, Enum.Material.Concrete)
+	block("PlatformEdge", Vector3.new(1.2, 0.1, 70), Vector3.new(RX + 8.8, 2.45, 150), C.yellow).CanCollide = false
+	for z = 130, 170, 20 do
+		block("CanopyPost", Vector3.new(0.7, 9, 0.7), Vector3.new(RX + 17, 6.9, z), C.dark, Enum.Material.Metal)
+	end
+	block("Canopy", Vector3.new(10, 0.6, 50), Vector3.new(RX + 15, 11.6, 150), C.blue, Enum.Material.Metal)
+	block("Bench", Vector3.new(1.6, 1.2, 8), Vector3.new(RX + 18, 3.0, 150), C.wood, Enum.Material.WoodPlanks)
+	local stationSign = sign("CRASH JUNCTION", Vector3.new(RX + 19.4, 7.5, 150), Vector3.new(0.4, 2.4, 16), 0, C.blue, C.white)
+	stationSign.CFrame = CFrame.new(RX + 19.4, 7.5, 150) * CFrame.Angles(0, math.rad(90), 0)
+	stationSign.Size = Vector3.new(16, 2.4, 0.4)
+	block("SignalMast", Vector3.new(0.6, 16, 0.6), Vector3.new(RX + 8, 8, 60), C.dark, Enum.Material.Metal)
+	block("SignalHead", Vector3.new(1.6, 4.4, 1.2), Vector3.new(RX + 8, 15, 60), "#15171c")
+	for k, col in { "#ff2b2b", "#ffb52e", "#35d24a" } do
+		local l = block("SignalLamp", Vector3.new(0.3, 1.0, 1.0), Vector3.new(RX + 8, 16.4 - (k - 1) * 1.4, 60.7), col, if k == 3 then Enum.Material.Neon else Enum.Material.SmoothPlastic)
+		l.Shape = Enum.PartType.Cylinder
+		l.CFrame = CFrame.new(RX + 8, 16.4 - (k - 1) * 1.4, 60.7) * CFrame.Angles(0, math.rad(90), 0)
+		l.CanCollide = false
+	end
+	for z = -280, 280, 80 do
+		block("TelegraphPole", Vector3.new(0.7, 20, 0.7), Vector3.new(RX - 11, 10, z), "#5c4630", Enum.Material.Wood)
+		block("Crossarm", Vector3.new(5, 0.4, 0.4), Vector3.new(RX - 11, 18.5, z), "#5c4630", Enum.Material.Wood).CanCollide = false
+	end
+	for _, dx in { -2, 2 } do
+		block("Wire", Vector3.new(0.08, 0.08, 560), Vector3.new(RX - 11 + dx, 18.8, 0), "#22252b").CanCollide = false
+	end
 	local anchor = block("RailAnchor", Vector3.new(1, 1, 1), Vector3.new(RX, 8, 285), C.dark)
 	anchor.Transparency, anchor.CanCollide, anchor.CanQuery = 1, false, false
 
@@ -401,6 +577,25 @@ function MapService.build(): (Folder, BasePart)
 	end
 	foamCubes(335, -306, 2, 3, 6, true)
 
+	MapService.scenery(theme.scenery)
+
+	-- Performance pass: nothing on the map needs Touched; flat / tiny / non-solid parts skip shadows
+	-- and spatial queries. (Dummies, vehicles and props are the only things that move.)
+	for _, d in map:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanTouch = false
+			local sz = d.Size
+			if not d.CanCollide then
+				d.CanQuery = false
+				d.CastShadow = false
+			elseif sz.Y < 1.2 or math.max(sz.X, sz.Y, sz.Z) < 3 then
+				d.CastShadow = false
+			end
+			if d.Anchored then
+				d.Massless = true
+			end
+		end
+	end
 	map.Parent = workspace
 	return map, anchor
 end

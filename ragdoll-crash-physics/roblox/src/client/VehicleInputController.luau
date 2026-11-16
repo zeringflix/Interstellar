@@ -72,7 +72,7 @@ local function stepVehicle(model: Model, dt: number, humanoid: Humanoid?)
 	local phys = spec.phys
 	local kind = phys.kind
 	local driving = humanoid ~= nil and seat.Occupant == humanoid
-	local live = driving and not Controller.suspended
+	local live = driving and not Controller.suspended and not model:GetAttribute("Exploded")
 	local throttle = if live then (if seat.ThrottleFloat ~= 0 then seat.ThrottleFloat else seat.Throttle) else 0
 	local steerIn = if live then (if seat.SteerFloat ~= 0 then seat.SteerFloat else seat.Steer) else 0
 

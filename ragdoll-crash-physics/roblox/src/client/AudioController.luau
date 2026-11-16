@@ -25,8 +25,9 @@ end
 
 local function applyVolumes()
 	master.Volume = Settings.get("MasterVolume")
-	sfx.Volume = Settings.get("SfxVolume")
-	ui.Volume = Settings.get("SfxVolume")
+	local on = if Settings.get("SoundEffects") then 1 else 0
+	sfx.Volume = Settings.get("SfxVolume") * on
+	ui.Volume = Settings.get("SfxVolume") * on
 	music.Volume = Settings.get("MusicVolume")
 end
 

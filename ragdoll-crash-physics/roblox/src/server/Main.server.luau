@@ -28,7 +28,7 @@ PhysicsService:CollisionGroupSetCollidable("VehicleDecor", "Player", false)
 -- Remotes ---------------------------------------------------------------------
 local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
-for _, name in { "Request", "Impact", "Report", "VehicleCrash", "Notice" } do
+for _, name in { "Request", "Impact", "Report", "VehicleCrash", "Notice", "Explosion" } do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -49,9 +49,50 @@ CrashReportService.countDisturbedProps = SceneResetService.countDisturbed
 SceneResetService.capture(map.Props)
 ScenarioService.apply("Showcase")
 
+-- A blast: real physics push (Explosion instance that breaks no joints) + damage to nearby dummies
+-- through the normal hit pipeline + the fireball on every client.
+local lastBlast = 0
+local function blast(position: Vector3, scale: number, source: string)
+	local now = os.clock()
+	if now - lastBlast < 0.25 then
+		return
+	end
+	lastBlast = now
+	local radius = Config.Explosion.RADIUS * scale
+	local e = Instance.new("Explosion")
+	e.Position = position
+	e.BlastRadius = radius
+	e.BlastPressure = 180000 * scale
+	e.DestroyJointRadiusPercent = 0
+	e.ExplosionType = Enum.ExplosionType.NoCraters
+	e.Visible = false
+	e.Parent = workspace
+	game:GetService("Debris"):AddItem(e, 2)
+	for id, d in DummyService.dummies do
+		local offset = d.torso.Position - position
+		local dist = offset.Magnitude
+		if dist < radius then
+			local power = 1 - dist / radius
+			local dir = if dist > 0.5 then offset.Unit else Vector3.yAxis
+			DummyService.hit(id, { part = d.torso, relVelocity = (dir + Vector3.new(0, 0.45, 0)).Unit * (25 + 95 * power),
+				relSpeed = 25 + 95 * power, vehicleImpact = 1.2 * scale, source = source, chain = true })
+		end
+	end
+	remotes.Explosion:FireAllClients(position, scale)
+end
+
 table.insert(ImpactService.vehicleCrashListeners, function(vehicle: Model, dv: number, pos: Vector3)
 	VehicleService.onCrash(vehicle, dv)
 	remotes.VehicleCrash:FireAllClients(vehicle, dv, pos)
+	-- hard enough hits (a wall for road vehicles, the ground for aircraft) end in an explosion
+	local kind = vehicle:GetAttribute("Kind")
+	local air = kind == "plane" or kind == "heli"
+	local limit = if air then Config.Explosion.AIRCRAFT_DV else Config.Explosion.GROUND_DV
+	if dv >= limit and not vehicle:GetAttribute("Exploded") and kind ~= "train" then
+		vehicle:SetAttribute("Exploded", true)
+		vehicle:SetAttribute("DamageLevel", 3)
+		blast(pos, math.clamp((vehicle:GetAttribute("Impact") or 1) * 0.8, 0.8, 1.8), "Explosion")
+	end
 end)
 
 -- Players ---------------------------------------------------------------------------
@@ -117,7 +158,7 @@ end
 
 -- Requests ---------------------------------------------------------------------------
 local lastCall = {} :: { [Player]: { [string]: number } }
-local COOLDOWN = { SpawnVehicle = 0.6, SpawnDummies = 0.4, Preset = 0.6, ResetScene = 0.6, ResetDummies = 0.5, GrabMove = 0 }
+local COOLDOWN = { Event = 1.5, LoadMap = 4, SetBody = 2, SpawnVehicle = 0.6, SpawnDummies = 0.4, Preset = 0.6, ResetScene = 0.6, ResetDummies = 0.5, GrabMove = 0 }
 
 local function playerPos(player: Player): Vector3?
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -227,6 +268,67 @@ function handlers.Teleport(player, index)
 			task.wait(0.1)
 		end
 		char:PivotTo(CFrame.new(zone[2], 5, zone[3]))
+	end
+end
+
+local gravityToken = 0
+function handlers.Event(player, name)
+	local origin = playerPos(player)
+	if not origin then
+		return
+	end
+	if name == "ReviveAll" then
+		for id in DummyService.dummies do
+			DummyService.revive(id)
+		end
+	elseif name == "DummyRain" then
+		local rng = Random.new()
+		for _ = 1, 8 do
+			local p = origin + Vector3.new(rng:NextNumber(-40, 40), 70 + rng:NextNumber(0, 30), rng:NextNumber(-40, 40))
+			if not DummyService.spawn("Noob", CFrame.new(p), "rain") then
+				notice(player, string.format("Dummy limit reached (%d)", DummyService.limit))
+				break
+			end
+		end
+	elseif name == "ZeroG" then
+		gravityToken += 1
+		local my = gravityToken
+		workspace.Gravity = 18
+		notice(player, "Zero-G for 10 seconds")
+		task.delay(10, function()
+			if my == gravityToken then
+				workspace.Gravity = 196.2
+			end
+		end)
+	elseif name == "Blast" then
+		local look = (player.Character :: Model):GetPivot().LookVector * Vector3.new(1, 0, 1)
+		blast(origin + (if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)) * 34 + Vector3.new(0, -1, 0), 1.2, "Blast")
+	end
+end
+
+function handlers.LoadMap(player, name)
+	if typeof(name) ~= "string" or not table.find(Config.Map.Names, name) or name == MapService.current then
+		return
+	end
+	releaseGrab(player)
+	VehicleService.deleteAll()
+	DummyService.clear()
+	local newMap, anchor = MapService.build(name)
+	VehicleService.setRailAnchor(anchor)
+	SceneResetService.capture(newMap.Props)
+	ScenarioService.apply("Showcase")
+	local char = player.Character
+	if char then
+		char:PivotTo(CFrame.new(12, 5, 52))
+	end
+	VehicleService.spawn(player, "SportsCar", false)
+	notice(player, "Map: " .. name)
+end
+
+function handlers.SetBody(player, name)
+	if typeof(name) == "string" and Config.Bodies[name] and Config.DummyBody ~= name then
+		Config.DummyBody = name
+		DummyService.resetAll()
 	end
 end
 

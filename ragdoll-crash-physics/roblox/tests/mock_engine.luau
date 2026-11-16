@@ -128,11 +128,6 @@ function Mock.install()
 	roblox.implementProperty("BasePart", "AssemblyRootPart", function(self)
 		return self
 	end)
-	roblox.implementProperty("BasePart", "Position", function(self)
-		return self.CFrame.Position
-	end, function(self, v)
-		self.CFrame = self.CFrame.Rotation + v
-	end)
 	method("BasePart", "SetNetworkOwner", function() end)
 	method("BasePart", "GetMass", function(self)
 		return self.AssemblyMass
@@ -274,7 +269,7 @@ function Mock.world()
 		return { FilterDescendantsInstances = {}, FilterType = nil }
 	end
 	local services = {
-		Players = players,
+		Players = players, Workspace = workspace,
 		RunService = { Heartbeat = heartbeat, RenderStepped = renderStepped, PreSimulation = signal(),
 			BindToRenderStep = function(_, name, _, fn)
 				renderSteps[name] = fn
@@ -291,12 +286,15 @@ function Mock.world()
 		UserInputService = { TouchEnabled = false, KeyboardEnabled = true, InputBegan = signal(), InputChanged = signal(), InputEnded = signal(),
 			IsKeyDown = function()
 				return false
-			end, GetMouseLocation = function()
+			end, GetLastInputType = function()
+				return roblox.Enum.UserInputType.Keyboard
+			end, GamepadEnabled = false, GetMouseLocation = function()
 				return roblox.Vector2.new(640, 360)
 			end },
 		GuiService = { GetGuiInset = function()
 			return roblox.Vector2.new(0, 36)
-		end },
+		end, Select = function() end },
+		MarketplaceService = { PromptGamePassPurchase = function() end, PromptProductPurchase = function() end },
 	}
 	local globals = {
 		workspace = workspace, services = services, task = {
@@ -338,9 +336,63 @@ function Mock.world()
 			Mock.warnings = (Mock.warnings or 0) + 1
 		end,
 	}
-	for _, name in { "Instance", "Vector3", "Vector2", "CFrame", "Color3", "Enum", "PhysicalProperties", "UDim", "UDim2",
+	for _, name in { "Vector3", "Vector2", "CFrame", "Color3", "Enum", "PhysicalProperties", "UDim", "UDim2",
 		"NumberRange", "NumberSequence", "NumberSequenceKeypoint", "ColorSequence", "Rect" } do
 		globals[name] = (roblox :: any)[name]
+	end
+	-- Lune serves reflection-database properties itself and has no engine behind them, so parts get
+	-- their physics properties initialised here and Position is refreshed from CFrame by Mock.sync().
+	local rawNew = roblox.Instance.new
+	globals.Instance = { new = function(class, parent)
+		local inst = rawNew(class)
+		if inst:IsA("BasePart") then
+			inst.AssemblyLinearVelocity = roblox.Vector3.zero
+			inst.AssemblyAngularVelocity = roblox.Vector3.zero
+			inst.Position = roblox.Vector3.zero
+			for k, v in { LocalTransparencyModifier = 0, AssemblyMass = 12, AssemblyRootPart = inst } do
+				local ok = pcall(function()
+					(inst :: any)[k] = v
+				end)
+				if not ok and not Mock["warned" .. k] then
+					Mock["warned" .. k] = true
+					print("mock: cannot init BasePart." .. k)
+				end
+			end
+		end
+		local init = ({
+			Humanoid = { MoveDirection = roblox.Vector3.zero, FloorMaterial = roblox.Enum.Material.Plastic },
+			VehicleSeat = { ThrottleFloat = 0, SteerFloat = 0, Throttle = 0, Steer = 0 },
+			Camera = { ViewportSize = roblox.Vector2.new(1280, 720), Focus = roblox.CFrame.new() },
+		})[class]
+		for k, v in init or {} do
+			local ok = pcall(function()
+				(inst :: any)[k] = v
+			end)
+			if not ok then
+				print("mock: cannot init", class, k)
+			end
+		end
+		if parent then
+			inst.Parent = parent
+		end
+		return inst
+	end }
+	Mock.sync = function(includeProps: boolean?)
+		local roots = { workspace:FindFirstChild("Dummies"), workspace:FindFirstChild("Vehicles") }
+		for _, p in players.list do
+			table.insert(roots, p.Character)
+		end
+		local map = workspace:FindFirstChild("Map")
+		if includeProps and map then
+			table.insert(roots, map:FindFirstChild("Props"))
+		end
+		for _, root in roots do
+			for _, d in root:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.Position = d.CFrame.Position
+				end
+			end
+		end
 	end
 	services.ServerScriptService = dm:GetService("ServerScriptService")
 	local game = { Players = players, ReplicatedStorage = replicated }
@@ -393,6 +445,7 @@ function Mock.player(world, userId: number)
 	local root = roblox.Instance.new("Part")
 	root.Name = "HumanoidRootPart"
 	root.CFrame = roblox.CFrame.new(12, 3, 52)
+	root.Position = roblox.Vector3.new(12, 3, 52)
 	root.Parent = char
 	char.PrimaryPart = root
 	local hum = roblox.Instance.new("Humanoid")

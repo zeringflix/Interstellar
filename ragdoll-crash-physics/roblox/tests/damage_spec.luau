@@ -87,7 +87,7 @@ s = D.newState(4, "Noob")
 check("G HEALTHY", D.statusText(s, 0) == "HEALTHY")
 hit(s, 14, "LeftArm", 1, 0)
 check("G STAGGERING", D.statusList(s, 0.2)[1] == "STAGGERING")
-check("G HIT after stagger", D.statusList(s, D and 1.25 or 0)[1] == "HIT" or Config.Damage.STAGGER_TIME >= Config.Damage.HIT_FLASH_TIME)
+check("G HIT after stagger", D.statusList(s, 1.6)[1] == "HIT", D.statusText(s, 1.6))
 s = D.newState(5, "Noob")
 hit(s, 42, "LeftLeg", 1, 0)
 check("G DOWN after medium leg hit", D.statusList(s, 0.5)[1] == "DOWN", D.statusText(s, 0.5))
@@ -140,6 +140,22 @@ check("face Dizzy while down", D.face(s, 11.5) == "Dizzy", D.face(s, 11.5))
 s = D.newState(11, "Noob")
 hit(s, 100, "Head", 1, 0)
 check("face Unconscious", D.face(s, 3) == "Unconscious", D.face(s, 3))
+
+-- blood, injuries, labels
+s = D.newState(20, "Noob")
+r = hit(s, 85, "LeftLeg", 1.6, 0)
+check("heavy hit: injury text + part label", r.injury == "Leg broken" or r.injury == "Leg shattered", r.injury)
+check("heavy hit starts bleeding and costs blood", s.bleeding and s.blood < 100, s.blood)
+local b0 = s.blood
+for i = 1, 600 do
+	D.tick(s, 0.5, i * 0.5)
+end
+check("blood drains to the floor, then clots", s.blood < b0 and s.blood >= Config.Damage.BLOOD_FLOOR and not s.bleeding, s.blood)
+check("heavy blood loss knocks the dummy out", s.unconsciousUntil > 0)
+check("part labels", D.partLabel("LeftLowerLeg") == "Left Knee" and D.partLabel("Head") == "Head" and D.partLabel("UpperTorso") == "Chest")
+check("condition phrases", D.condition(D.newState(21, "Noob"), 0) == "Unhurt")
+D.revive(s, 1000)
+check("revive refills blood", s.blood == 100)
 
 -- units
 check("mph conversion", math.abs(109 * MPH - 68.2) < 0.2)

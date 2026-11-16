@@ -1,3 +1,4 @@
 roblox/tests/out/
 __pycache__/
 *.blend1
+blender/out/*.fbx
