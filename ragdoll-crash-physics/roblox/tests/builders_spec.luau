@@ -106,5 +106,45 @@ for typeName, t in Config.DummyTypes do
 	end
 end
 
+-- imported, textured meshes: VehicleBuilder must keep each mesh's SurfaceAppearance and hide the stand-in parts
+do
+	local dm = roblox.Instance.new("DataModel")
+	local rs = dm:GetService("ReplicatedStorage")
+	local lib = roblox.Instance.new("Folder")
+	lib.Name = "VehicleMeshes"
+	lib.Parent = rs
+	local imported = roblox.Instance.new("Model") -- what Import 3D produces: a model holding the per-vehicle models
+	imported.Name = "AllVehicles"
+	imported.Parent = lib
+	local sedan = roblox.Instance.new("Model")
+	sedan.Name = "Sedan"
+	sedan.Parent = imported
+	for _, n in { "Sedan_Body", "Sedan_Trim", "Sedan_Glass", "Sedan_Wheel1" } do
+		local mp = roblox.Instance.new("MeshPart")
+		mp.Name = n
+		mp.Parent = sedan
+		if not string.find(n, "Glass") then
+			local sa = roblox.Instance.new("SurfaceAppearance")
+			sa.Parent = mp
+		end
+		local junk = roblox.Instance.new("Attachment")
+		junk.Parent = mp
+	end
+	local h2 = Harness.new(true, { services = { ReplicatedStorage = rs } })
+	local B2 = h2.require("shared/VehicleBuilder")
+	local ok, model = pcall(B2.build, "Sedan", false)
+	check("textured import: builds", ok, model)
+	if ok then
+		local body = model:FindFirstChild("Sedan_Body")
+		check("textured import: mesh placed", body ~= nil and body:IsA("MeshPart"))
+		check("textured import: SurfaceAppearance kept", body and body:FindFirstChildOfClass("SurfaceAppearance") ~= nil)
+		check("textured import: stray children removed", body and body:FindFirstChildOfClass("Attachment") == nil)
+		check("textured import: glass stays untextured glass", model.Sedan_Glass.Material == roblox.Enum.Material.Glass)
+		check("textured import: wheel mesh welded to the wheel", model.Sedan_Wheel1:FindFirstChildOfClass("WeldConstraint") ~= nil)
+		check("textured import: stand-in parts hidden", model.Root.Transparency == 1 and model.Body.Transparency == 1)
+		check("textured import: flagged", model:GetAttribute("DetailedMesh") == true)
+	end
+end
+
 print(string.format("builders_spec: %d passed, %d failed", passed, failed))
 process.exit(if failed > 0 then 1 else 0)

@@ -18,7 +18,7 @@ local Builder = {}
 local MATERIAL = {
 	body = Enum.Material.SmoothPlastic, glass = Enum.Material.Glass, light = Enum.Material.Neon,
 	neon = Enum.Material.Neon, dark = Enum.Material.SmoothPlastic, metal = Enum.Material.Metal,
-	rubber = Enum.Material.SmoothPlastic,
+	rubber = Enum.Material.Rubber,
 }
 local NO_FRICTION = PhysicalProperties.new(0.7, 0, 0, 100, 1)
 local BODY_PROPS = PhysicalProperties.new(0.7, 0.2, 0.15, 1, 1)
@@ -117,7 +117,12 @@ local function applyMeshes(model: Model, key: string, root: BasePart, parts, whe
 		local entry = src:IsA("MeshPart") and info[src.Name]
 		if entry then
 			local mesh = src:Clone() :: MeshPart
-			mesh:ClearAllChildren()
+			for _, child in mesh:GetChildren() do -- keep the imported textures (SurfaceAppearance), drop anything else
+				if not child:IsA("SurfaceAppearance") then
+					child:Destroy()
+				end
+			end
+			local textured = mesh:FindFirstChildOfClass("SurfaceAppearance") ~= nil
 			mesh.Size = Vector3.new(entry[4], entry[5], entry[6])
 			mesh.CFrame = CFrame.new(entry[1], entry[2], entry[3])
 			mesh.CanCollide, mesh.CanQuery, mesh.CanTouch = false, false, false
@@ -130,9 +135,12 @@ local function applyMeshes(model: Model, key: string, root: BasePart, parts, whe
 			elseif kind == "Lights" then
 				mesh.Material = Enum.Material.Neon
 			else
+				-- textured meshes: the SurfaceAppearance supplies colour, roughness, metalness and normals
 				mesh.Material = Enum.Material.SmoothPlastic
 			end
-			mesh.Color = Color3.new(1, 1, 1) -- colours are baked into the mesh as vertex colours
+			if not textured then
+				mesh.Color = Color3.new(1, 1, 1) -- untextured imports carry their colours as vertex colours
+			end
 			mesh.Parent = model
 			if not visualOnly then
 				local index = tonumber(string.match(src.Name, "%d+$"))
@@ -231,7 +239,7 @@ function Builder.build(key: string, visualOnly: boolean?): Model
 		wheel.Size = Vector3.new(w.width, w.radius * 2, w.radius * 2)
 		wheel.CFrame = CFrame.new(v3(w.pos))
 		wheel.Color = Color3.fromHex("#17181b")
-		wheel.Material = Enum.Material.SmoothPlastic
+		wheel.Material = Enum.Material.Rubber
 		wheel.CanCollide = false
 		wheel.CollisionGroup = "VehicleDecor"
 		wheel.CustomPhysicalProperties = FEATHER

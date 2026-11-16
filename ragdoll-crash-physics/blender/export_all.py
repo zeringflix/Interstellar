@@ -17,6 +17,20 @@ for key in order:
         mw = ob.matrix_world.copy()
         ob.parent = root
         ob.matrix_world = mw
+# point every texture at its real file (appending into an unsaved file can leave '//' paths dangling)
+for img in bpy.data.images:
+    name = os.path.basename(bpy.path.abspath(img.filepath)) if img.filepath else ""
+    for key in order:
+        cand = os.path.join(HERE, "out", "textures", key, name)
+        if name and name.startswith(key + "_") and os.path.exists(cand):
+            img.filepath = cand
+            img.reload()
+            break
+missing = [i.name for i in bpy.data.images if i.filepath and not os.path.exists(bpy.path.abspath(i.filepath))]
+print("missing textures:", missing)
 out = os.path.join(HERE, "out", "AllVehicles.glb")
-bpy.ops.export_scene.gltf(filepath=out, export_yup=True)
+try:
+    bpy.ops.export_scene.gltf(filepath=out, export_yup=True, export_image_format="JPEG", export_image_quality=85)
+except TypeError:
+    bpy.ops.export_scene.gltf(filepath=out, export_yup=True, export_image_format="JPEG", export_jpeg_quality=85)
 print("wrote", out, os.path.getsize(out) // 1024, "KB")
