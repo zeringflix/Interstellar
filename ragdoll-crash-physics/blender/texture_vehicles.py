@@ -162,8 +162,19 @@ class G:
         return nd
 
 
+def default_material():
+    m = bpy.data.materials.get("RCP_Default")
+    if not m:
+        m = bpy.data.materials.new("RCP_Default")
+        m.use_nodes = True
+        m.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.05, 0.05, 0.055, 1)
+        m.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.6
+    return m
+
+
 def classify(mat):
     """paint | metal | rubber | plastic | fabric | glass | emissive, from the original material."""
+    mat = mat or default_material()
     name = mat.name.split(".")[0]
     b = mat.node_tree.nodes.get("Principled BSDF") if mat.use_nodes else None
     metal = b.inputs["Metallic"].default_value if b else 0
@@ -193,6 +204,7 @@ def build_material(src, img_mask, wear, obj_height, vehicle, look=None):
     look = look or {}
     """Returns a new material: procedural graph whose outputs are routed for each bake pass."""
     kind, col, metal0, rough0 = classify(src)
+    src = src or default_material()
     m = bpy.data.materials.new(src.name + "_bake")
     m.use_nodes = True
     g = G(m)
@@ -567,6 +579,9 @@ def prepare(vehicle):
         originals = [slot.material for slot in ob.material_slots]
         graphs = []
         for slot in ob.material_slots:
+            if slot.material is None:
+                slot.material = default_material()
+            originals[len(graphs)] = slot.material
             src = slot.material
             m, out, route, target = build_material(src, mask, wear, 1.0, vehicle)
             slot.material = m
@@ -618,7 +633,7 @@ def apply_look(vehicle, objs, wear, look, route_name="NORMAL"):
         mask = mask_image(ob, vehicle)
         graphs = []
         for slot, orig_name in zip(ob.material_slots, ob["rcp_orig"]):
-            src = bpy.data.materials.get(orig_name)
+            src = bpy.data.materials.get(orig_name) or default_material()
             m, out, route, target = build_material(src, mask, wear, 1.0, vehicle, look)
             m.node_tree.links.new(route[route_name].outputs[0], out.inputs["Surface"])
             old = slot.material
