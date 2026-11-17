@@ -64,7 +64,7 @@ def sports():
                  tail_w=0.92, wheel_style="sport10", rim_color="#2a2c30", caliper="#d11a1a", crown=0.05, flare=0.04,
                  headlight=(0.52, 0.93, 1.35, 1.72), grille=(0.5, 0.78, 1.25), grille_bars=2, chrome=False,
                  doors=[2.22, -2.0], seat_rows=[0.5], exhausts=(-1.2, -0.6, 0.6, 1.2), taillight=(0.3, 0.95, 2.2, 2.48),
-                 flush_handles=True, handle_drop=0.45, handle_gap=0.14)
+                 flush_handles=True, handle_drop=0.45, handle_gap=0.14, single_window=True)
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
@@ -124,7 +124,7 @@ def police():
 def muscle():
     p = car_dims("MuscleCar", L=17.6, W=7.4, color="#b3161a", clear=0.7, belt=3.05, roof=4.5, hood_front=2.8, hood_cowl=3.12,
                  cowl=2.0, ws_top=0.2, roof_rear=-2.6, deck=-6.2, trunk=3.22, b_pillar=-2.0, arch=1.14, roof_w=0.72, nose_w=0.92,
-                 tail_w=0.94, wheel_style="alloy5", rim_color="#d8dbe0", doors=[2.15, -2.2], seat_rows=[-0.3, -2.4], handle_drop=0.42, handle_gap=0.14,
+                 tail_w=0.94, wheel_style="alloy5", rim_color="#d8dbe0", doors=[2.15, -2.2], seat_rows=[-0.3, -2.4], handle_drop=0.42, handle_gap=0.14, single_window=True,
                  headlight=(0.62, 0.9, 2.05, 2.5), grille=(0.58, 1.75, 2.55), grille_bars=5, exhausts=(-2.4, 2.4), flare=0.035,
                  taillight=(0.2, 0.95, 2.55, 2.95))
 
@@ -153,7 +153,7 @@ def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
                  cowl=4.9, ws_top=3.3, roof_rear=0.7, deck=0.35, trunk=4.3, b_pillar=2.0, arch=1.13, roof_w=0.8, nose_w=0.94, tail_w=0.97,
                  wheel_style=style, rim_color="#c9ccd1", doors=[3.4, 0.75], seat_rows=[2.3], quarter_glass=False, crown=0.05, flare=0.03,
                  headlight=(0.58, 0.92, 2.95, 3.5), grille=(0.52, 2.2, 3.55), grille_bars=4, exhausts=(2.6,), taillight=(0.86, 0.97, 2.9, 3.9),
-                 plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25)
+                 plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25, single_window=True)
     p.update(over)
 
     def extras(p, surf, paint, G):
@@ -257,9 +257,9 @@ def monster():
     G["Trim"].append(C.box("transmission", (0.9, 1.8, 0.8), (0, -1.4, ez - 0.1), blk, bev=0.12))
     # cage inside the cab, visible through the open windows
     for y in (2.4, 0.9):
-        G["Trim"].append(C.tube("cabhoop", [(-2.9, y, LIFT + 1.6), (-2.8, y, LIFT + 5.8), (2.8, y, LIFT + 5.8), (2.9, y, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
-    G["Trim"].append(C.tube("cabbar", [(-2.8, 2.4, LIFT + 5.8), (-2.8, 0.9, LIFT + 5.8)], 0.12, steel, segs=8))
-    G["Trim"].append(C.tube("cabbar", [(2.8, 2.4, LIFT + 5.8), (2.8, 0.9, LIFT + 5.8)], 0.12, steel, segs=8))
+        G["Trim"].append(C.tube("cabhoop", [(-2.9, y, LIFT + 1.6), (-2.5, y, LIFT + 5.3), (2.5, y, LIFT + 5.3), (2.9, y, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
+    G["Trim"].append(C.tube("cabbar", [(-2.5, 2.4, LIFT + 5.3), (-2.5, 0.9, LIFT + 5.3)], 0.12, steel, segs=8))
+    G["Trim"].append(C.tube("cabbar", [(2.5, 2.4, LIFT + 5.3), (2.5, 0.9, LIFT + 5.3)], 0.12, steel, segs=8))
     for sx in (-1, 1):
         G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (sx * 1.2, 2.9, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
     G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (0, 2.9, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))

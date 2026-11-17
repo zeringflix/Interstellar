@@ -69,7 +69,7 @@ def matte(color, rough=0.75):
     return mat("Matte", color, rough=rough)
 
 
-GLASS = lambda: mat("Glass", "#1d2b33", rough=0.04, alpha=0.42, spec=1.0)
+GLASS = lambda: mat("Glass", "#16222a", rough=0.03, alpha=0.5, spec=1.0)
 RUBBER = lambda: mat("Rubber", "#0f0f10", rough=0.88)
 CHROME = lambda: mat("Chrome", "#e8eaee", rough=0.12, metal=1.0)
 ALLOY = lambda: mat("Alloy", "#b9bec6", rough=0.3, metal=1.0)

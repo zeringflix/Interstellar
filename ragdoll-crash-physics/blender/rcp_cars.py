@@ -46,8 +46,9 @@ def stations(p):
         add(ydk - 0.25, 1.0, c, belt, tz, 0.85)
     add(ydk, 1.0, c, belt, tz + 0.04, 0.84, "rw")                 # base of the rear screen
     add(yrr, 1.0, c, belt, roof - 0.06, rw_, "glass")              # rear of the roof
-    add(yb - 0.22, 1.0, c, belt, roof, rw_, "pillar")              # B pillar
-    add(yb + 0.22, 1.0, c, belt, roof, rw_, "glass")
+    if not p.get("single_window"):  # 4-door cars and coupes: B-pillar between the side windows
+        add(yb - 0.22, 1.0, c, belt, roof, rw_, "pillar")
+        add(yb + 0.22, 1.0, c, belt, roof, rw_, "glass")
     add(ywt, 1.0, c, belt, roof - 0.05, rw_, "ws")                 # header rail
     add(yc, 1.0, c, belt, hc + 0.05, 0.86)                          # cowl / base of the windscreen
     add(yc + 0.3, 1.0, c, hc - 0.04, hc, 0.86)
@@ -68,7 +69,7 @@ def body_shell(p, paint, extra_cut=None):
             return 1
         if f in ("ws", "rw") and j in M.TOP_STRIPS:
             return 1
-        if f in ("ws", "rw") and j in M.SIDE_GLASS and p.get("quarter_glass", True):
+        if f in ("ws", "rw") and j in M.SIDE_GLASS and p.get("quarter_glass", False):
             return 1 if j in (7, 12) else 0   # small quarter lights, leaving real A / C pillars
         return 0
 
@@ -148,6 +149,20 @@ def pull_handle(surf, side, yc, zc, length, material, flush=False):
     ob = loft("handle", rings, material)
     M.subsurf(ob, 1)
     return ob
+
+
+def inset_glass(glass, depth):
+    """Push the side glass back from the body skin so it sits inside the window frame like real glass."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(glass.data)
+    bm.normal_update()
+    for v in bm.verts:
+        n = v.normal
+        if abs(n.x) > 0.45:
+            v.co -= n * depth
+    bm.to_mesh(glass.data)
+    bm.free()
 
 
 def window_trim(glass, material, radius=0.045):
@@ -360,6 +375,7 @@ def build_car(p, wheels, extras=None, extra_cut=None):
     body, glass = split_glass(shell)
     if glass:
         G["Trim"] += window_trim(glass, M.CHROME() if p.get("chrome", True) else M.mat("Seal", "#0f1012", rough=0.55))
+        inset_glass(glass, 0.035)
     if glass and not p.get("side_glass", True):  # open side windows (monster truck shell)
         import bmesh
         bm = bmesh.new()
