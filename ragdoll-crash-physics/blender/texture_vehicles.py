@@ -189,7 +189,8 @@ def classify(mat):
     return kind, col, metal, rough
 
 
-def build_material(src, img_mask, wear, obj_height, vehicle):
+def build_material(src, img_mask, wear, obj_height, vehicle, look=None):
+    look = look or {}
     """Returns a new material: procedural graph whose outputs are routed for each bake pass."""
     kind, col, metal0, rough0 = classify(src)
     m = bpy.data.materials.new(src.name + "_bake")
@@ -251,6 +252,10 @@ def build_material(src, img_mask, wear, obj_height, vehicle):
     mud = srgb_to_lin(wear.get("mud", "#6b5a45"))
     dustc = srgb_to_lin("#9a8f7b")
     base = tuple(col)
+    # the vehicle's main body colour can be swapped by a look (variant)
+    is_main = kind == "paint" and look.get("main") is not None and max(abs(base[i] - look["main"][i]) for i in range(3)) < 0.03
+    if is_main and look.get("paint"):
+        base = srgb_to_lin(look["paint"])
     color = None
     rough = None
     metal = None
@@ -259,13 +264,27 @@ def build_material(src, img_mask, wear, obj_height, vehicle):
     if kind == "paint":
         c = (g.node("ShaderNodeRGB"), 0)
         c[0].outputs[0].default_value = base
-        if wear.get("camo") and src.name.split(".")[0] in ("Olive", "Armour", "OliveDark", "ArmourDark"):
-            cam = g.noise(pos, 0.11, 2, 0.5, 1.2)
-            camr = g.ramp((cam, "Fac"), [(0.0, srgb_to_lin(wear["camo"][0])), (0.47, srgb_to_lin(wear["camo"][1])),
-                                         (0.6, srgb_to_lin(wear["camo"][2]))], "CONSTANT")
+        camo = look.get("camo", wear.get("camo"))
+        if camo and (src.name.split(".")[0] in ("Olive", "Armour", "OliveDark", "ArmourDark") or (is_main and look.get("camo_on_main"))):
+            cam = g.noise(pos, look.get("camo_scale", 0.11), 2, 0.5, 1.2)
+            camr = g.ramp((cam, "Fac"), [(0.0, srgb_to_lin(camo[0])), (0.47, srgb_to_lin(camo[1])),
+                                         (0.6, srgb_to_lin(camo[2]))], "CONSTANT")
             c = (camr, 0)
+        if is_main and look.get("stripes"):
+            hw, H = look["hw"], look["H"]
+            sx = g.node("ShaderNodeSeparateXYZ", Vector=pos)
+            ax = g.math("ABSOLUTE", (sx, "X"))
+            band = g.math("MULTIPLY", g.smooth(ax, hw * 0.10, hw * 0.12), g.smooth(ax, hw * 0.38, hw * 0.36))
+            top = g.smooth((nz, "Z"), 0.35, 0.6)
+            nxa = g.math("ABSOLUTE", (nz, "X"))
+            side = g.smooth(nxa, 0.55, 0.8)
+            zb = g.math("MULTIPLY", g.smooth(zpos, H * 0.40, H * 0.41), g.smooth(zpos, H * 0.50, H * 0.49))
+            smask = g.math("MAXIMUM", g.math("MULTIPLY", top, band), g.math("MULTIPLY", side, zb))
+            c = g.mix(c, srgb_to_lin(look["stripes"]), smask)
         # subtle tone variation (sun fade / respray patches)
         c = g.mix(c, (0.0, 0.0, 0.0, 1.0), g.math("MULTIPLY", g.smooth((big, "Fac"), 0.35, 0.75), 0.06))
+        if look.get("fade"):  # sun-bleached, chalky paint
+            c = g.mix(c, (0.5, 0.49, 0.47, 1.0), g.math("MULTIPLY", g.smooth((big, "Fac"), 0.2, 0.8), look["fade"]))
         if wear.get("panels"):
             sy = g.node("ShaderNodeSeparateXYZ", Vector=pos)
             fr = g.math("FRACT", g.math("DIVIDE", (sy, "Y"), wear["panels"]))
@@ -284,7 +303,7 @@ def build_material(src, img_mask, wear, obj_height, vehicle):
         c = g.mix(c, bare, g.math("MULTIPLY", wear_e, g.smooth((fine, "Fac"), 0.5, 0.6)))
         c = g.mix(c, srgb_to_lin("#b9b9b6"), g.math("MULTIPLY", scratch, 0.35))
         color = c
-        rough = g.math("ADD", 0.22, g.math("MULTIPLY", (fine, "Fac"), 0.12))
+        rough = g.math("ADD", look.get("gloss", 0.22), g.math("MULTIPLY", (fine, "Fac"), 0.12))
         metal = g.math("MULTIPLY", wear_e, g.smooth((fine, "Fac"), 0.5, 0.6))
         peel = g.noise(pos, 140, 2, 0.5)
         bump_h = g.math("ADD", g.math("MULTIPLY", (peel, "Fac"), 0.25), bump_h if bump_h else 0.0)
@@ -408,66 +427,6 @@ def new_image(name, res, non_color, fill=(0.5, 0.5, 0.5, 1.0)):
     return img
 
 
-def bake_object(ob, vehicle, wear, res, folder):
-    unwrap(ob)
-    pts = [ob.matrix_world @ v.co for v in ob.data.vertices]
-    zmax = max(p.z for p in pts) if pts else 1
-    height = max(zmax, 1.0)
-    base_name = ob.name
-    mask = new_image(base_name + "_Mask", res, True, (0, 0, 0, 1))
-    imgs = {
-        "COLOR": new_image(base_name + "_Color", res, False),
-        "ROUGH": new_image(base_name + "_Roughness", res, True),
-        "METAL": new_image(base_name + "_Metalness", res, True, (0, 0, 0, 1)),
-        "NORMAL": new_image(base_name + "_Normal", res, True, (0.5, 0.5, 1.0, 1.0)),
-    }
-    graphs = []
-    for slot in ob.material_slots:
-        src = slot.material or bpy.data.materials.new("Default")
-        if not src.use_nodes:
-            src.use_nodes = True
-        m, out, route, target = build_material(src, mask, wear, height, vehicle)
-        slot.material = m
-        graphs.append((m, out, route, target))
-    sc = bpy.context.scene
-    select_only(ob)
-
-    def run(pass_name, image, samples, bake_type):
-        for m, out, route, target in graphs:
-            target.image = image
-            m.node_tree.nodes.active = target
-            m.node_tree.links.new(route[pass_name].outputs[0], out.inputs["Surface"])
-        sc.cycles.samples = samples
-        kw = dict(type=bake_type, margin=6, use_clear=True)
-        if bake_type == "NORMAL":
-            kw.update(normal_space="TANGENT")
-        bpy.ops.object.bake(**kw)
-
-    run("MASK", mask, 12, "EMIT")
-    run("COLOR", imgs["COLOR"], 1, "EMIT")
-    run("ROUGH", imgs["ROUGH"], 1, "EMIT")
-    run("METAL", imgs["METAL"], 1, "EMIT")
-    run("NORMAL", imgs["NORMAL"], 1, "NORMAL")
-    os.makedirs(folder, exist_ok=True)
-    paths = {}
-    for key, img in imgs.items():
-        label = {"COLOR": "Color", "ROUGH": "Roughness", "METAL": "Metalness", "NORMAL": "Normal"}[key]
-        p = os.path.join(folder, "%s_%s.png" % (base_name, label))
-        img.filepath_raw = p
-        img.file_format = "PNG"
-        img.save()
-        paths[key] = p
-    # metalness that is (almost) all black is dropped: the material gets metallic = 0 instead
-    import numpy as np
-    arr = np.empty(res * res * 4, dtype=np.float32)
-    imgs["METAL"].pixels.foreach_get(arr)
-    has_metal = float(arr[0::4].max()) > 0.08
-    final_material(ob, imgs, has_metal)
-    for img in (mask,):
-        bpy.data.images.remove(img)
-    return paths, has_metal
-
-
 def final_material(ob, imgs, has_metal):
     m = bpy.data.materials.new(ob.name + "_PBR")
     m.use_nodes = True
@@ -513,66 +472,259 @@ def resolution_for(ob):
     return RES
 
 
-def process(vehicle):
-    t0 = time.time()
-    # always start from the untextured model, kept in out/untextured/ (made on the first run)
+
+# ------------------------------------------------------------------------------- the five looks
+# Per vehicle: the colour that "Two-Tone Livery" repaints the body with, and its stripe colour.
+LIVERY = {
+    "Sedan": ("#b3161a", "#f2f2f2"), "SportsCar": ("#16181c", "#f6c40f"), "PoliceCar": ("#1f3a7a", "#f2f2f2"),
+    "MuscleCar": ("#1f4fd8", "#f2f2f2"), "PickupTruck": ("#c3c0b8", "#2f7d3c"), "MonsterTruck": ("#ff7a00", "#16181c"),
+    "CityBus": ("#c8102e", "#f2f2f2"), "DumpTruck": ("#f2c21a", "#16181c"), "Tank": ("#dfe2e3", "#9aa0a6"),
+    "ArmoredTruck": ("#585e66", "#9aa0a6"), "SmallPlane": ("#1d4fa8", "#f2f2f2"), "CargoPlane": ("#4b5446", "#d9d9d0"),
+    "Helicopter": ("#16181c", "#f6c40f"), "Train": ("#1f6b3a", "#c9a13b"), "Bulldozer": ("#ff8a1f", "#16181c"),
+    "GoKart": ("#1d6fe0", "#f2f2f2"), "RocketSled": ("#f2c21a", "#16181c"),
+}
+CAMO = {"Tank", "ArmoredTruck"}
+
+
+def looks(vehicle, wear):
+    """The five options offered for every vehicle: (number, name, wear profile, look)."""
+    base = dict(wear)
+    alt, stripe = LIVERY.get(vehicle, ("#b3161a", "#f2f2f2"))
+    clean = dict(base, dirt=0.03, edge=0.0, dust=0.0)
+    clean.pop("rust", None)
+    clean["soot"] = min(base.get("soot", 0), 0.15) if base.get("soot") else 0
+    battered = dict(base, dirt=min(1.0, base["dirt"] * 1.4 + 0.35), edge=min(1.0, base["edge"] + 0.5), dust=min(1.0, base["dust"] + 0.3),
+                    rust=max(base.get("rust", 0), 0.45), mud=base.get("mud", "#4e3d2b"))
+    livery = dict(base, dirt=0.12, edge=0.08, dust=0.06)
+    livery.pop("rust", None)
+    rally = dict(base, dirt=0.55, edge=0.25, dust=0.5, mud="#86714f")
+    rally.pop("rust", None)
+    out = [
+        (1, "Factory Clean", clean, dict(gloss=0.10)),
+        (2, "Daily Use", base, dict()),
+        (3, "Battered", battered, dict(fade=0.35, gloss=0.5)),
+    ]
+    if vehicle in CAMO:
+        out.append((4, "Arctic Camo", livery, dict(camo=("#e6e8e8", "#a9b0b5", "#5e666d"), camo_on_main=True, camo_scale=0.09)))
+        out.append((5, "Desert Camo", rally, dict(camo=("#cdb78c", "#a88c60", "#6f5c40"), camo_on_main=True, camo_scale=0.12, gloss=0.6)))
+    else:
+        out.append((4, "Two-Tone Livery", livery, dict(paint=alt, stripes=stripe, gloss=0.14)))
+        out.append((5, "Matte Rally", rally, dict(paint="#2b2e33", stripes="#ff6a00", gloss=0.6)))
+    return out
+
+
+# ------------------------------------------------------------------------------- stages
+def texturable(sc, vehicle):
+    return [o for o in sc.objects if o.type == "MESH" and o.name.startswith(vehicle + "_") and not any(k in o.name for k in SKIP)]
+
+
+def main_color(objs):
+    """The body colour covering the most area: the colour a look may repaint."""
+    area = {}
+    for ob in objs:
+        names = list(ob["rcp_orig"]) if "rcp_orig" in ob else [sl.material.name if sl.material else "" for sl in ob.material_slots]
+        for poly in ob.data.polygons:
+            mat = bpy.data.materials.get(names[poly.material_index]) if poly.material_index < len(names) else None
+            if not mat:
+                continue
+            kind, col, _, _ = classify(mat)
+            if kind == "paint":
+                key = tuple(round(c, 3) for c in col[:3])
+                area[key] = area.get(key, 0) + poly.area
+    return (max(area, key=area.get) + (1.0,)) if area else None
+
+
+def vehicle_frame(objs):
+    import mathutils
+    pts = [ob.matrix_world @ mathutils.Vector(c) for ob in objs for c in ob.bound_box]
+    return max(abs(p.x) for p in pts), max(p.z for p in pts)
+
+
+def prepare(vehicle):
+    """UV-unwrap every texturable mesh and bake its mask (AO + edges): shared by all five looks."""
     import shutil
     clean = os.path.join(OUT, "untextured", vehicle + ".blend")
     if not os.path.exists(clean):
         os.makedirs(os.path.dirname(clean), exist_ok=True)
         shutil.copy2(os.path.join(OUT, vehicle + ".blend"), clean)
+    prepared = os.path.join(OUT, "prepared", vehicle + ".blend")
+    if os.path.exists(prepared) and "--reprepare" not in ARGS:
+        bpy.ops.wm.open_mainfile(filepath=prepared)
+        return
     bpy.ops.wm.open_mainfile(filepath=clean)
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
-    sc.render.bake.margin = 6
-    objs = [o for o in sc.objects if o.type == "MESH" and o.name.startswith(vehicle + "_")]
-    # strays left in the scene by the modelling scripts are not part of the vehicle
     for o in [o for o in sc.objects if o.type == "MESH" and not o.name.startswith(vehicle + "_")]:
-        bpy.data.objects.remove(o)
-    wear = WEAR.get(vehicle, dict(dirt=0.3, edge=0.2, dust=0.2))
+        bpy.data.objects.remove(o)   # strays left behind by the modelling scripts
     folder = os.path.join(OUT, "textures", vehicle)
-    report = {}
-    for ob in objs:
-        if ob.name.endswith(SKIP) or any(s in ob.name for s in SKIP):
-            continue
+    os.makedirs(folder, exist_ok=True)
+    wear = WEAR.get(vehicle, dict(dirt=0.3, edge=0.2, dust=0.2))
+    for ob in texturable(sc, vehicle):
+        unwrap(ob)
         res = resolution_for(ob)
-        paths, has_metal = bake_object(ob, vehicle, wear, res, folder)
-        report[ob.name] = dict(res=res, metal=has_metal)
-        print("  baked", ob.name, res, "metal" if has_metal else "", flush=True)
-    # pack nothing into the .blend: images live next to it in out/textures
+        mask = new_image(ob.name + "_Mask", res, True, (0, 0, 0, 1))
+        originals = [slot.material for slot in ob.material_slots]
+        graphs = []
+        for slot in ob.material_slots:
+            src = slot.material
+            m, out, route, target = build_material(src, mask, wear, 1.0, vehicle)
+            slot.material = m
+            graphs.append((m, out, route, target))
+        run_pass(ob, graphs, "MASK", mask, 12, "EMIT")
+        mask.filepath_raw = os.path.join(folder, ob.name + "_Mask.png")
+        mask.file_format = "PNG"
+        mask.save()
+        for slot, orig in zip(ob.material_slots, originals):
+            junk = slot.material
+            slot.material = orig
+            bpy.data.materials.remove(junk)
+        ob["rcp_res"] = res
+        print("  prepared", ob.name, res, flush=True)
+    os.makedirs(os.path.dirname(prepared), exist_ok=True)
+    bpy.ops.wm.save_as_mainfile(filepath=prepared)
+
+
+def run_pass(ob, graphs, pass_name, image, samples, bake_type):
+    sc = bpy.context.scene
+    select_only(ob)
+    for m, out, route, target in graphs:
+        target.image = image
+        m.node_tree.nodes.active = target
+        m.node_tree.links.new(route[pass_name].outputs[0], out.inputs["Surface"])
+    sc.cycles.samples = samples
+    kw = dict(type=bake_type, margin=6, use_clear=True)
+    if bake_type == "NORMAL":
+        kw.update(normal_space="TANGENT")
+    bpy.ops.object.bake(**kw)
+
+
+def mask_image(ob, vehicle):
+    p = os.path.join(OUT, "textures", vehicle, ob.name + "_Mask.png")
+    img = bpy.data.images.load(p, check_existing=True)
+    img.colorspace_settings.name = "Non-Color"
+    return img
+
+
+def apply_look(vehicle, objs, wear, look, route_name="NORMAL"):
+    """Swap every texturable mesh to the procedural graph of one look. Returns per-object graphs."""
+    hw, H = vehicle_frame(objs)
+    for ob in objs:
+        if "rcp_orig" not in ob:
+            ob["rcp_orig"] = [slot.material.name if slot.material else "" for slot in ob.material_slots]
+    look = dict(look, main=main_color(objs), hw=hw, H=H)
+    all_graphs = {}
+    for ob in objs:
+        mask = mask_image(ob, vehicle)
+        graphs = []
+        for slot, orig_name in zip(ob.material_slots, ob["rcp_orig"]):
+            src = bpy.data.materials.get(orig_name)
+            m, out, route, target = build_material(src, mask, wear, 1.0, vehicle, look)
+            m.node_tree.links.new(route[route_name].outputs[0], out.inputs["Surface"])
+            old = slot.material
+            slot.material = m
+            if old and old.get("rcp_nodes"):
+                bpy.data.materials.remove(old)
+            graphs.append((m, out, route, target))
+        all_graphs[ob.name] = graphs
+    return all_graphs
+
+
+def preview(vehicle):
+    """Render the five looks with the live procedural shaders (no baking needed to choose)."""
+    prepare(vehicle)
+    sc = bpy.context.scene
+    objs = texturable(sc, vehicle)
+    every = [o for o in sc.objects if o.type == "MESH" and o.name.startswith(vehicle + "_")]
+    wear = WEAR.get(vehicle, dict(dirt=0.3, edge=0.2, dust=0.2))
+    folder = os.path.join(OUT, "previews", "looks")
+    os.makedirs(folder, exist_ok=True)
+    for n, name, w, look in looks(vehicle, wear):
+        apply_look(vehicle, objs, w, look)
+        render_preview(every, os.path.join(folder, "%s_%d.png" % (vehicle, n)))
+        print("  look", vehicle, n, name, flush=True)
+
+
+def render_preview(objs, path):
+    import importlib
+    importlib.import_module("rcp_model")._mats.clear()
+    br = importlib.import_module("build_realistic")
+    name = os.path.splitext(os.path.basename(path))[0]
+    br.render(name, objs)  # writes <out>/previews/<name>.png
+    os.replace(os.path.join(br.OUT, "previews", name + ".png"), path)
+
+
+def apply(vehicle, n):
+    """Bake the chosen look into texture maps, export the textured model and render it."""
+    prepare(vehicle)
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    objs = texturable(sc, vehicle)
+    every = [o for o in sc.objects if o.type == "MESH" and o.name.startswith(vehicle + "_")]
+    wear = WEAR.get(vehicle, dict(dirt=0.3, edge=0.2, dust=0.2))
+    pick = [l for l in looks(vehicle, wear) if l[0] == n][0]
+    graphs = apply_look(vehicle, objs, pick[2], pick[3])
+    folder = os.path.join(OUT, "textures", vehicle)
+    import numpy as np
+    for ob in objs:
+        res = int(ob.get("rcp_res", resolution_for(ob)))
+        imgs = {
+            "COLOR": new_image(ob.name + "_Color", res, False),
+            "ROUGH": new_image(ob.name + "_Roughness", res, True),
+            "METAL": new_image(ob.name + "_Metalness", res, True, (0, 0, 0, 1)),
+            "NORMAL": new_image(ob.name + "_Normal", res, True, (0.5, 0.5, 1.0, 1.0)),
+        }
+        g = graphs[ob.name]
+        run_pass(ob, g, "COLOR", imgs["COLOR"], 1, "EMIT")
+        run_pass(ob, g, "ROUGH", imgs["ROUGH"], 1, "EMIT")
+        run_pass(ob, g, "METAL", imgs["METAL"], 1, "EMIT")
+        run_pass(ob, g, "NORMAL", imgs["NORMAL"], 1, "NORMAL")
+        for key, img in imgs.items():
+            label = {"COLOR": "Color", "ROUGH": "Roughness", "METAL": "Metalness", "NORMAL": "Normal"}[key]
+            img.filepath_raw = os.path.join(folder, "%s_%s.png" % (ob.name, label))
+            img.file_format = "PNG"
+            img.save()
+        arr = np.empty(res * res * 4, dtype=np.float32)
+        imgs["METAL"].pixels.foreach_get(arr)
+        final_material(ob, imgs, float(arr[0::4].max()) > 0.08)
+        print("  baked", ob.name, res, flush=True)
     for img in bpy.data.images:
         if img.filepath_raw:
-            img.filepath = bpy.path.relpath(img.filepath_raw)
+            img.filepath = bpy.path.relpath(img.filepath_raw, start=OUT)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, vehicle + ".blend"), relative_remap=True)
     bpy.ops.object.select_all(action="DESELECT")
-    for o in objs:
+    for o in every:
         o.select_set(True)
-    bpy.context.view_layer.objects.active = objs[0]
+    bpy.context.view_layer.objects.active = every[0]
     glb = os.path.join(OUT, vehicle + ".glb")
     try:
         bpy.ops.export_scene.gltf(filepath=glb, use_selection=True, export_yup=True, export_image_format="JPEG", export_image_quality=88)
     except TypeError:
         bpy.ops.export_scene.gltf(filepath=glb, use_selection=True, export_yup=True, export_image_format="JPEG", export_jpeg_quality=88)
-    if RENDER:
-        import importlib
-        br = importlib.import_module("build_realistic")
-        importlib.import_module("rcp_model")._mats.clear()
-        br.render(vehicle, objs)
-        br.render(vehicle, objs, "_rear", (0.8, -1.0, 0.4))
-    print("TEXTURED", vehicle, "%.0fs" % (time.time() - t0), json.dumps(report), flush=True)
-    return report
+    import importlib
+    importlib.import_module("rcp_model")._mats.clear()
+    importlib.import_module("build_realistic").render(vehicle, every)
+    print("APPLIED", vehicle, n, pick[1], flush=True)
 
 
 def main():
-    keys = ONLY or SPEC["order"]
-    allrep = {}
-    path = os.path.join(OUT, "texture_report.json")
-    if os.path.exists(path):
-        allrep = json.load(open(path))
-    for k in keys:
-        allrep[k] = process(k)
-        json.dump(allrep, open(path, "w"), indent=1)
+    """python3 texture_vehicles.py preview [Vehicle ...]
+    python3 texture_vehicles.py apply Sedan=3 Tank=5 ...   (or  apply all=2)"""
+    if "apply" in ARGS:
+        picks = {}
+        for a in ARGS:
+            if "=" in a:
+                k, v = a.split("=")
+                for key in (SPEC["order"] if k == "all" else [k]):
+                    picks[key] = int(v)
+        for k in SPEC["order"]:
+            if k in picks:
+                apply(k, picks[k])
+        return
+    for k in ONLY or SPEC["order"]:
+        t0 = time.time()
+        preview(k)
+        print("PREVIEWED", k, "%.0fs" % (time.time() - t0), flush=True)
 
 
 if __name__ == "__main__":
