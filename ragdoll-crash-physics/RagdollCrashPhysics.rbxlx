@@ -1216,7 +1216,7 @@ return {
 	Helicopter = {
 		Helicopter_Body = { 0.000, 5.119, 5.487, 5.915, 6.963, 24.825 },
 		Helicopter_Glass = { 0.000, 4.402, -2.759, 5.915, 4.502, 8.051 },
-		Helicopter_Interior = { 0.000, 4.306, -2.607, 5.815, 4.813, 8.536 },
+		Helicopter_Interior = { 0.000, 4.306, -2.344, 5.815, 4.813, 8.011 },
 		Helicopter_Lights = { 0.000, 3.938, 1.430, 6.300, 4.775, 13.460 },
 		Helicopter_Spin1 = { 0.000, 8.295, -0.000, 26.100, 1.211, 5.300 },
 		Helicopter_Spin2 = { 0.900, 6.600, 16.600, 0.500, 5.000, 0.680 },
@@ -7952,7 +7952,7 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 		touchLine.Position, touchLine.Size = UDim2.fromOffset(6, 30), UDim2.new(1, -12, 0, 18)
 		resetBtn.AnchorPoint, resetBtn.Position, resetBtn.Size = Vector2.new(1, 0), UDim2.new(1, -6, 0, 4), UDim2.fromOffset(116, 24)
 		viewBtn.AnchorPoint, viewBtn.Position, viewBtn.Size = Vector2.new(1, 0), UDim2.new(1, -128, 0, 4), UDim2.fromOffset(110, 24)
-		nameLabel.Size = UDim2.fromOffset(110, 18)
+		nameLabel.Size, nameLabel.TextSize = UDim2.fromOffset(80, 18), 12 -- room for the view button
 	else
 		hud.AnchorPoint = Vector2.new(1, 1)
 		hud.Position = UDim2.new(1, -14, 1, -14)
