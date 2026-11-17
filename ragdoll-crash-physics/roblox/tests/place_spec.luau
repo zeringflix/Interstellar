@@ -21,7 +21,7 @@ local mods = 0
 for _, d in place:GetDescendants() do
 	if d:IsA("ModuleScript") then mods += 1 end
 end
-check("all modules present (28)", mods == 28, mods)
+check("all modules present (30)", mods == 30, mods)
 check("VehicleMeshes folder ready for the imported models", rs:FindFirstChild("VehicleMeshes") ~= nil)
 check("streaming on", ws.StreamingEnabled == true)
 local lawn, tiles, roads = 0, 0, 0

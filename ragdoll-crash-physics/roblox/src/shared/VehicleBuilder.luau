@@ -12,6 +12,7 @@
 --   Turret        (tank) separate assembly on a servo hinge
 local Specs = require(script.Parent.VehicleSpecs)
 local MeshInfo = require(script.Parent.VehicleMeshInfo)
+local Cockpit = require(script.Parent.Cockpit)
 
 local Builder = {}
 
@@ -152,7 +153,19 @@ local function applyMeshes(model: Model, key: string, root: BasePart, parts, whe
 				elseif kind == "Turret" and spec.turret then
 					target = parts[spec.turret[1]]
 				end
-				weld(target, mesh)
+				local pivot = kind == "Steer" and Cockpit.pivot(spec.cockpit and spec.cockpit.control)
+				if pivot then
+					-- the steering wheel / yoke / T-bar turns about its column: the driver's client sets
+					-- SteerJoint.Transform from the steering input (FirstPersonController)
+					local joint = Instance.new("Motor6D")
+					joint.Name = "SteerJoint"
+					joint.Part0, joint.Part1 = root, mesh
+					joint.C0 = root.CFrame:ToObjectSpace(pivot)
+					joint.C1 = mesh.CFrame:ToObjectSpace(pivot)
+					joint.Parent = root
+				else
+					weld(target, mesh)
+				end
 			end
 			used += 1
 		end
@@ -168,6 +181,23 @@ local function applyMeshes(model: Model, key: string, root: BasePart, parts, whe
 	end
 	model:SetAttribute("DetailedMesh", true)
 	return true
+end
+
+-- Hand grips for the first-person view: attachments on the steering mesh (so the hands turn with
+-- it) or on the root when the vehicle has no detailed meshes.
+local function addGrips(model: Model, root: BasePart, key: string, spec)
+	local grips = Cockpit.grips(spec.cockpit and spec.cockpit.control)
+	if not grips then
+		return
+	end
+	local steer = model:FindFirstChild(key .. "_Steer")
+	local holder: BasePart = if steer and steer:IsA("BasePart") and root:FindFirstChild("SteerJoint") then steer else root
+	for name, p in { RCP_GripR = grips.right, RCP_GripL = grips.left } do
+		local a = Instance.new("Attachment")
+		a.Name = name
+		a.CFrame = holder.CFrame:ToObjectSpace(CFrame.new(p))
+		a.Parent = holder
+	end
 end
 
 function Builder.getSpec(key: string)
@@ -368,6 +398,7 @@ function Builder.build(key: string, visualOnly: boolean?): Model
 	steer.Parent = root
 
 	applyMeshes(model, key, root, parts, wheelParts, spec, false)
+	addGrips(model, root, key, spec)
 	model:SetAttribute("VehicleKey", key)
 	model:SetAttribute("Kind", spec.phys.kind)
 	model:SetAttribute("Display", spec.display)

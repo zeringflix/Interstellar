@@ -70,7 +70,8 @@ def register(builder, spec, car_dims):
         G["Trim"].append(tube("dart2", [(0, 20.05, BZ - 0.9), (0, 20.05, BZ + 0.2)], 0.06, M.CHROME(), segs=6))
         for zz in (-1.3, 1.3):
             G["Trim"].append(box("hinge", (2.9, 0.1, 0.16), (-1.2, 19.75, BZ + zz), M.STEEL(), bev=0.03))
-        G["Body"].append(box("firebox", (6.9, 5.4, 6.4), (0, -7.0, 6.6), blue, bev=0.5, segs=3))
+        # firebox: its rear sheet is the backhead, the front wall of the cab
+        G["Body"].append(box("firebox", (6.9, 3.0, 6.4), (0, -5.75, 6.6), blue, bev=0.5, segs=3))
         # chimney, domes, safety valves, whistle, bell
         G["Trim"].append(lathe("chimney", [(1.15, 0), (0.95, 0.5), (0.82, 1.2), (0.84, 2.6), (1.15, 3.0), (1.22, 3.25), (0.95, 3.3), (0.75, 3.0), (0.75, 0)], black, segs=28, axis="Z", loc=(0, 14.0, BZ + BR - 0.15)))
         G["Trim"].append(lathe("dome", [(1.5, 0), (1.35, 0.4), (1.3, 1.3), (1.0, 1.9), (0.5, 2.15), (0, 2.2)], brass, segs=28, axis="Z", loc=(0, 5.0, BZ + BR - 0.2)))
@@ -121,20 +122,17 @@ def register(builder, spec, car_dims):
             G["Trim"].append(tube("cabrail", [(s * 4.6, -16.9, 4.4), (s * 4.6, -16.9, 9.6)], 0.06, M.CHROME(), segs=8))
             for zz in (2.2, 3.2):
                 G["Trim"].append(box("cabstep", (1.0, 1.3, 0.1), (s * 4.6, -16.2, zz), black, bev=0.02))
-            G["Glass"].append(cyl("spectacle", 0.75, 0.08, (s * 2.6, -6.95, 10.0), M.GLASS(), "Y", segs=24))
-            G["Trim"].append(lathe("specring", [(0.75, 0), (0.9, 0), (0.9, 0.12), (0.75, 0.12)], brass, segs=24, axis="Y", loc=(s * 2.6, -6.92, 10.0), close=True))
             G["Lights"].append(cyl("buflamp", 0.26, 0.4, (s * 3.4, 19.2, 3.9), M.HEADLIGHT(), "Y", segs=14))
             G["Trim"].append(cyl("buffer", 0.55, 0.3, (s * 2.8, -20.05, 3.0), M.STEEL(), "Y", segs=20))
             G["Trim"].append(cyl("bufferstem", 0.2, 0.8, (s * 2.8, -19.6, 3.0), black, "Y", segs=10))
         for y in (13.0, 6.5, 0, -6.5, -13.0):
             G["Trim"].append(cyl("axle", 0.22, 8.4, (0, y, 2.1 if abs(y) < 10 else 1.5), M.STEEL(), "X", segs=10))
         # cab: walls with door openings, arched roof
-        cab = box("cab", (9.0, 9.6, 7.2), (0, -12.0, 7.6), blue, bev=0.12)
-        G["Body"].append(cab)
+        import rcp_interior as I
+        I.steam_cab(spec("Train"), G, (-4.5, -16.8, 4.0), (4.5, -7.2, 11.2), 9.8, blue, black)
         roof = loft("cabroof", [[(x, y, 11.3 + 0.9 * math.cos(x / 5.1 * math.pi / 2)) for x in (-5.1, -3.8, -2, 0, 2, 3.8, 5.1)] + [(x, y, 11.05 + 0.9 * math.cos(x / 5.1 * math.pi / 2)) for x in (5.1, 3.8, 2, 0, -2, -3.8, -5.1)]
                                 for y in (-17.6, -6.4)], black)
         G["Body"].append(roof)
-        G["Trim"].append(box("cabback", (3.2, 0.1, 4.6), (0, -16.86, 7.2), M.matte("#0c0c0d", 0.9), bev=0.02))
         # pilot (cowcatcher): slatted wedge
         G["Body"].append(box("bufferbeamF", (9.4, 0.7, 1.4), (0, 19.3, 2.9), red, bev=0.08))
         G["Body"].append(box("bufferbeamR", (9.4, 0.7, 1.4), (0, -19.4, 2.9), red, bev=0.08))
@@ -164,32 +162,30 @@ def register(builder, spec, car_dims):
         G["Trim"].append(cyl("stack", 0.24, 3.0, (1.5, 3.4, 8.3), blk, "Z", segs=16))
         G["Trim"].append(box("raincap", (0.6, 0.6, 0.06), (1.5, 3.5, 9.9), blk, bev=0.02, rot=(math.radians(25), 0, 0)))
         G["Trim"].append(lathe("precleaner", [(0.18, 0), (0.18, 0.9), (0.45, 1.0), (0.45, 1.5), (0.3, 1.7), (0, 1.7)], blk, segs=18, axis="Z", loc=(-1.5, 3.0, 6.9)))
-        # ROPS cab with real glass panes
+        # ROPS cab with real glass panes, tall enough for a seated driver (Cat cites ~15% more glass)
         for sx in (-2.9, 2.9):
             for sy in (-5.8, -1.4):
-                G["Body"].append(box("post", (0.4, 0.4, 3.6), (sx, sy, 6.5), yel, bev=0.06))
-        G["Body"].append(box("roof", (6.8, 5.6, 0.4), (0, -3.6, 8.5), yel, bev=0.12))
+                G["Body"].append(box("post", (0.4, 0.4, 4.4), (sx, sy, 6.9), yel, bev=0.06))
+        G["Body"].append(box("roof", (6.8, 5.6, 0.4), (0, -3.6, 9.3), yel, bev=0.12))
         G["Body"].append(box("cabbase", (6.2, 4.8, 0.5), (0, -3.6, 4.75), yel, bev=0.08))
         glass = M.GLASS()
-        G["Glass"] += [box("gF", (5.4, 0.06, 3.0), (0, -1.4, 6.6), glass, bev=0.01), box("gR", (5.4, 0.06, 3.0), (0, -5.8, 6.6), glass, bev=0.01),
-                       box("gL", (0.06, 4.0, 3.0), (-2.9, -3.6, 6.6), glass, bev=0.01), box("gRt", (0.06, 4.0, 3.0), (2.9, -3.6, 6.6), glass, bev=0.01)]
-        G["Trim"] += [box("seat", (1.6, 1.4, 0.35), (0, -4.0, 5.5), M.SEAT(), bev=0.1), box("seatback", (1.6, 0.3, 1.7), (0, -4.7, 6.3), M.SEAT(), bev=0.1)]
+        G["Glass"] += [box("gF", (5.4, 0.06, 3.8), (0, -1.4, 7.0), glass, bev=0.01), box("gR", (5.4, 0.06, 3.8), (0, -5.8, 7.0), glass, bev=0.01),
+                       box("gL", (0.06, 4.0, 3.8), (-2.9, -3.6, 7.0), glass, bev=0.01), box("gRt", (0.06, 4.0, 3.8), (2.9, -3.6, 7.0), glass, bev=0.01)]
+        import rcp_interior as I
+        I.dozer_cab(spec("Bulldozer"), G, (-2.9, -5.8, 5.0), (2.9, -1.4, 9.1))
         # cab doors: a framed glass door on each side, hinged on the front post, handle at the rear
         for sx in (-1, 1):
             x = sx * 2.97
-            frame = [(x, -5.55, 5.1), (x, -5.55, 8.15), (x, -1.65, 8.15), (x, -1.65, 5.1), (x, -5.55, 5.1)]
+            frame = [(x, -5.55, 5.1), (x, -5.55, 8.95), (x, -1.65, 8.95), (x, -1.65, 5.1), (x, -5.55, 5.1)]
             G["Trim"].append(tube("doorframe", frame, 0.07, blk, segs=6))
             G["Trim"].append(tube("doormid", [(x, -5.55, 6.4), (x, -1.65, 6.4)], 0.05, blk, segs=6))
-            for zz in (5.6, 7.6):
+            for zz in (5.6, 8.3):
                 G["Trim"].append(tube("doorhinge", [(x + sx * 0.06, -1.6, zz - 0.25), (x + sx * 0.06, -1.6, zz + 0.25)], 0.07, blk, segs=8))
             G["Trim"].append(tube("doorhandle", [(x, -5.25, 6.05), (x + sx * 0.14, -5.25, 6.05), (x + sx * 0.14, -4.65, 6.05), (x, -4.65, 6.05)], 0.04, M.CHROME(), segs=6, smooth=3))
             for zz in (2.6, 3.4, 4.2):  # climbing steps up the track frame to the cab door
                 G["Trim"].append(box("cabstep", (0.6, 1.2, 0.08), (sx * 6.4, -3.2, zz), M.STEEL(), bev=0.02))
-        for sx in (-1.2, 1.2):
-            G["Trim"].append(tube("lever", [(sx, -2.6, 5.0), (sx, -2.9, 6.2)], 0.05, blk, segs=6))
-            G["Trim"].append(cyl("knob", 0.11, 0.2, (sx, -2.9, 6.3), blk, "Z", segs=10))
         for sx in (-2.4, -0.8, 0.8, 2.4):
-            G["Lights"].append(box("worklight", (0.6, 0.3, 0.4), (sx, -0.95, 8.95), M.HEADLIGHT(), bev=0.08))
+            G["Lights"].append(box("worklight", (0.6, 0.3, 0.4), (sx, -0.95, 9.75), M.HEADLIGHT(), bev=0.08))
         G["Body"].append(box("fueltank", (6.4, 1.6, 2.6), (0, -6.9, 5.9), yel, bev=0.2))
         # undercarriage
         for s in (-1, 1):
@@ -262,13 +258,12 @@ def register(builder, spec, car_dims):
         G["Body"].append(box("numberpanel", (1.1, 0.08, 0.8), (0, 1.75, z + 1.55), red, bev=0.12, rot=(math.radians(-35), 0, 0)))
         G["Trim"].append(M.text("number", "7", 0.6, (0, 1.82, z + 1.56), (math.radians(125), 0, math.pi), M.matte("#f4f4f4", 0.5), extrude=0.01))
         # steering
-        G["Trim"].append(tube("column", [(0, 2.4, z + 0.15), (0, 1.25, z + 1.75)], 0.06, frame, segs=8))
-        wc = Vector((0, 1.2, z + 1.8))
-        ax = Vector((0, -1.15, 1.6)).normalized()
-        u, v = Vector((1, 0, 0)), ax.cross(Vector((1, 0, 0))).normalized()
-        G["Trim"].append(tube("wheelrim", [wc + (u * math.cos(a) + v * math.sin(a)) * 0.62 for a in [M.TAU * k / 22 for k in range(22)]], 0.06, M.DARK(), segs=8, closed=True))
-        for a in (math.radians(90), math.radians(210), math.radians(330)):
-            G["Trim"].append(tube("spoke", [wc, wc + (u * math.cos(a) + v * math.sin(a)) * 0.6], 0.04, M.ALLOY(), segs=6))
+        import rcp_interior as I
+        I.kart(s, G)
+        ctl = s["cockpit"]["control"]
+        t = math.radians(ctl["tilt"])
+        low = Vector((0, -ctl["pos"][2], ctl["pos"][1])) - Vector((0, -math.cos(t), math.sin(t))) * 1.55
+        G["Trim"].append(tube("column", [(0, 2.4, z + 0.15), tuple(low)], 0.06, frame, segs=8))
         for sx in (-0.55, 0.55):
             G["Trim"].append(box("pedal", (0.3, 0.06, 0.5), (sx, 3.3, z + 0.3), M.ALLOY(), bev=0.02, rot=(math.radians(-25), 0, 0)))
         # bucket seat
@@ -328,15 +323,18 @@ def register(builder, spec, car_dims):
             G["Trim"].append(tube("cross", [(-2.6, y, 1.15), (2.6, y, 1.15)], 0.12, steel, segs=8))
         G["Body"].append(box("deck", (4.6, 15.8, 0.12), (0, 0, 1.3), white, bev=0.03))
         # ogive nose fairing with canopy
+        # nose fairing ends in front of the rider's knees; the rider sits on top behind a windscreen,
+        # as on Sonic Wind No. 1 (a jet-style seat on top of the sled)
         st = [oval(13.2, 0.06, 0.06, 1.75, 16, 2.2), oval(12.2, 0.55, 0.45, 1.8, 16, 2.2), oval(10.5, 1.25, 0.95, 1.95, 16, 2.2), oval(8.5, 1.85, 1.35, 2.2, 16, 2.2),
-              oval(6.5, 2.2, 1.6, 2.4, 16, 2.2), oval(4.2, 2.25, 1.65, 2.45, 16, 2.2), oval(2.2, 2.1, 1.3, 2.3, 16, 2.2), oval(1.2, 1.5, 0.6, 2.0, 16, 2.2)]
-        fl = ["", "", "", "", "", "", "", ""]
-        nose = loft("nose", st, materials=[white, M.GLASS(), red], mat_fn=lambda i, j: 2 if i < 2 else (1 if (i in (4, 5) and j in (2, 3, 4, 5)) else 0))
+              oval(6.6, 2.15, 1.55, 2.4, 16, 2.2), oval(5.6, 1.95, 1.2, 2.3, 16, 2.2)]
+        nose = loft("nose", st, materials=[white, red], mat_fn=lambda i, j: 1 if i < 2 else 0)
         M.subsurf(nose, 2)
         surf = M.Surface(nose)
-        body, glass = C.split_glass(nose)
-        G["Body"].append(body)
-        G["Glass"].append(glass)
+        G["Body"].append(nose)
+        ws_pts = lambda y, z, w: [(w * math.cos(a), y + 0.25 * math.cos(a) ** 2, z + 0.15 * math.sin(a)) for a in [math.pi * k / 10 for k in range(11)]]
+        screen = loft("windscreen", [ws_pts(5.95, 3.3, 1.45), ws_pts(5.25, 5.3, 1.25)], M.GLASS(), cap=False, closed=False)
+        G["Glass"].append(screen)
+        G["Trim"].append(tube("wsframe", ws_pts(5.25, 5.3, 1.25), 0.05, M.CHROME(), segs=6))
         for side in ("L", "R"):
             sg = 1 if side == "R" else -1
             G["Body"].append(surf.project("stripe", side, (2.0, 1.75, 11.5, 2.0), red, 0.012, res=0.15))
@@ -344,8 +342,8 @@ def register(builder, spec, car_dims):
             if loc is not None:
                 G["Trim"].append(M.text("name", "RCP-1", 0.55, (loc.x + sg * 0.04, 6.0, 2.6), (math.pi / 2, 0, sg * math.pi / 2), M.matte("#14161a", 0.5)))
         G["Trim"].append(tube("pitot", [(0, 13.2, 1.75), (0, 15.0, 1.75)], 0.035, M.CHROME(), segs=6))
-        G["Trim"] += [box("seat", (1.5, 1.4, 0.3), (0, 4.2, 1.6), M.SEAT(), bev=0.1), box("seatback", (1.5, 0.3, 1.9), (0, 3.4, 2.5), M.SEAT(), bev=0.1, rot=(math.radians(-14), 0, 0)),
-                      box("headrest", (0.8, 0.3, 0.5), (0, 3.15, 3.55), M.SEAT(), bev=0.1)]
+        import rcp_interior as I
+        I.sled_seat(spec("RocketSled"), G)
         # twin solid rocket motors with bands, domes and bell nozzles
         for s in (-1, 1):
             x = s * 1.25

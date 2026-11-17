@@ -19,6 +19,7 @@ local Gui = require(script.Parent.Gui)
 local Settings = require(script.Parent.Settings)
 local Audio = require(script.Parent.AudioController)
 local Camera = require(script.Parent.CameraController)
+local FirstPerson = require(script.Parent.FirstPersonController)
 local Replay = require(script.Parent.ReplayController)
 local Feed = require(script.Parent.HitNotificationController)
 local Visuals = require(script.Parent.DummyVisuals)
@@ -517,14 +518,14 @@ end
 
 -- Key binds ---------------------------------------------------------------------------------------------------------
 local BINDS = {
-	car = { { "W", "Accelerate" }, { "S", "Brake / Reverse" }, { "A D", "Steer" }, { "H", "Horn" }, { "Space", "Get out" } },
-	tank = { { "W S", "Drive" }, { "A D", "Pivot turn" }, { "Mouse", "Aim turret" }, { "Space", "Get out" } },
-	train = { { "W", "Throttle" }, { "S", "Brake" }, { "H", "Whistle" }, { "Space", "Get out" } },
-	sled = { { "W", "Ignite" }, { "S", "Brake" }, { "Space", "Bail out" } },
-	plane = { { "W S", "Engine power" }, { "A D", "Bank / turn" }, { "E", "Pull up" }, { "Q", "Nose down" }, { "Space", "Eject" } },
-	heli = { { "W S", "Forward / back" }, { "A D", "Turn" }, { "E", "Climb" }, { "Q", "Descend" }, { "Space", "Get out" } },
+	car = { { "W", "Accelerate" }, { "S", "Brake / Reverse" }, { "A D", "Steer" }, { "H", "Horn" }, { "V", "First person" }, { "Space", "Get out" } },
+	tank = { { "W S", "Drive" }, { "A D", "Pivot turn" }, { "Mouse", "Aim turret" }, { "V", "First person" }, { "Space", "Get out" } },
+	train = { { "W", "Throttle" }, { "S", "Brake" }, { "H", "Whistle" }, { "V", "First person" }, { "Space", "Get out" } },
+	sled = { { "W", "Ignite" }, { "S", "Brake" }, { "V", "First person" }, { "Space", "Bail out" } },
+	plane = { { "W S", "Engine power" }, { "A D", "Bank / turn" }, { "E", "Pull up" }, { "Q", "Nose down" }, { "V", "First person" }, { "Space", "Eject" } },
+	heli = { { "W S", "Forward / back" }, { "A D", "Turn" }, { "E", "Climb" }, { "Q", "Descend" }, { "V", "First person" }, { "Space", "Get out" } },
 }
-local PAD = { W = "RT", S = "LT", ["W S"] = "RT LT", ["A D"] = "L Stick", E = "RB", Q = "LB", H = "Y", Space = "A", Mouse = "R Stick" }
+local PAD = { W = "RT", S = "LT", ["W S"] = "RT LT", ["A D"] = "L Stick", E = "RB", Q = "LB", H = "Y", Space = "A", Mouse = "R Stick", V = "R3" }
 local TOUCH = {
 	car = "Stick: drive + steer   |   Jump: get out", tank = "Stick: drive + pivot   |   Camera aims the turret", train = "Stick up / down: throttle",
 	sled = "Stick up: ignite", plane = "Stick: power + bank   |   UP / DOWN buttons: pitch", heli = "Stick: move + turn   |   UP / DOWN buttons: climb",
@@ -654,6 +655,25 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 		Audio.ui("resetScene")
 		send("ResetVehicle")
 	end)
+	-- first-person toggle: the driver's own point of view from the seat
+	local viewBtn: TextButton
+	local function paintView()
+		Gui.setText(viewBtn, if FirstPerson.enabled() then "THIRD PERSON" else "FIRST PERSON")
+	end
+	viewBtn = Gui.pill("FIRST PERSON", "blue", { Name = "ViewToggle", TextSize = 13, Parent = hud }, function()
+		Audio.ui("uiClick")
+		FirstPerson.toggle()
+		paintView()
+	end)
+	paintView()
+	FirstPerson.onChanged = function()
+		paintView()
+	end
+	Settings.Changed:Connect(function(key)
+		if key == "FirstPerson" then
+			paintView()
+		end
+	end)
 	if mobile then
 		hud.AnchorPoint = Vector2.new(0.5, 0)
 		hud.Position = UDim2.new(0.5, 0, 0, 62)
@@ -664,15 +684,18 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 		extra.Visible, binds.Visible = false, false
 		touchLine.Position, touchLine.Size = UDim2.fromOffset(6, 30), UDim2.new(1, -12, 0, 18)
 		resetBtn.AnchorPoint, resetBtn.Position, resetBtn.Size = Vector2.new(1, 0), UDim2.new(1, -6, 0, 4), UDim2.fromOffset(116, 24)
+		viewBtn.AnchorPoint, viewBtn.Position, viewBtn.Size = Vector2.new(1, 0), UDim2.new(1, -128, 0, 4), UDim2.fromOffset(110, 24)
+		nameLabel.Size = UDim2.fromOffset(110, 18)
 	else
 		hud.AnchorPoint = Vector2.new(1, 1)
 		hud.Position = UDim2.new(1, -14, 1, -14)
-		hud.Size = UDim2.fromOffset(250, 250)
+		hud.Size = UDim2.fromOffset(250, 288)
+		viewBtn.AnchorPoint, viewBtn.Position, viewBtn.Size = Vector2.new(0, 1), UDim2.new(0, 10, 1, -42), UDim2.new(1, -20, 0, 28)
 		speed.Position = UDim2.fromOffset(8, 6)
 		unit.Position = UDim2.fromOffset(84, 20)
 		nameLabel.Position = UDim2.fromOffset(12, 42)
 		extra.Position = UDim2.fromOffset(12, 62)
-		binds.Position, binds.Size = UDim2.fromOffset(12, 84), UDim2.new(1, -24, 0, 124)
+		binds.Position, binds.Size = UDim2.fromOffset(12, 84), UDim2.new(1, -24, 0, 144)
 		touchLine.Visible = false
 		resetBtn.AnchorPoint, resetBtn.Position, resetBtn.Size = Vector2.new(0, 1), UDim2.new(0, 10, 1, -8), UDim2.new(1, -20, 0, 28)
 	end

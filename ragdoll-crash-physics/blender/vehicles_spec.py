@@ -369,6 +369,80 @@ add("RocketSled", "Rocket Sled", "Special", "Extreme / Straight Line",
     dict(speed=5, weight=2, handling=0), spawn="SledTrack", mass=600, impact=1.6)
 
 
+# ---------------------------------------------------------------- cockpits
+# First-person view and driver placement, researched per vehicle (see README "Interiors").
+# eye     : where the driver's head (eye point) belongs, Roblox axes. The game seats the avatar so
+#           its head lands here, puts the first-person camera here, and the Blender interior is
+#           built around it (seat under it, controls in reach, dash below the sight line).
+# control : what the hands hold. type wheel | yoke | bars | sticks | levers | grips.
+#           wheel / yoke / bars: pos = centre, tilt = degrees the rim leans back from vertical,
+#           radius (wheel) or width (yoke, bars). sticks / levers / grips: right, left = grip points.
+# Roblox avatars sit about 2.75 studs from seat to eye, a lot taller than a real person in a seat
+# of the same size, so seats sit low and the eye sits ~0.45 under the headliner.
+SEATED_EYE = 2.75
+
+
+def fwd(eye, f=0.0, up=0.0, right=0.0):
+    return [round(eye[0] + right, 3), round(eye[1] + up, 3), round(eye[2] - f, 3)]
+
+
+def wheel_at(eye, f, down, r, tilt, kind="wheel"):
+    return dict(type=kind, pos=fwd(eye, f, -down), tilt=tilt, radius=r)
+
+
+COCKPITS = {
+    # midsize sedan: eye ~0.6 ahead of the B-pillar, 15 in wheel ~19 in from the chest
+    "Sedan": dict(eye=[-1.75, 4.43, -0.3], control=("wheel", 1.55, 1.25, 0.6, 25)),
+    "PoliceCar": dict(eye=[-1.75, 4.43, -0.35], control=("wheel", 1.55, 1.25, 0.6, 25)),
+    # mid-engined supercar: low, reclined, small flat-bottom wheel close to the chest
+    "SportsCar": dict(eye=[-1.8, 3.25, 0.9], control=("wheel", 1.45, 1.05, 0.52, 20)),
+    # 60s muscle car: thin-rimmed big wheel, upright
+    "MuscleCar": dict(eye=[-1.85, 4.0, 1.0], control=("wheel", 1.6, 1.2, 0.68, 22)),
+    # regular-cab full-size pickup: high seat, big wheel
+    "PickupTruck": dict(eye=[-1.9, 5.65, 0.0], control=("wheel", 1.6, 1.3, 0.7, 30)),
+    # monster truck: driver centred in the body for balance and protection
+    "MonsterTruck": dict(eye=[0.0, 9.6, -0.5], control=("wheel", 1.45, 1.2, 0.55, 25)),
+    # transit bus: raised driver's platform, near-horizontal big wheel
+    "CityBus": dict(eye=[-2.3, 6.9, -15.2], control=("wheel", 1.45, 1.45, 0.95, 62)),
+    # heavy dump truck: high cab, big wheel on a steep column
+    "DumpTruck": dict(eye=[-2.2, 8.3, -7.6], control=("wheel", 1.5, 1.35, 0.85, 40)),
+    # tank: driven head-out of the open driver's hatch, T-bar handlebars below
+    "Tank": dict(eye=[-2.2, 5.15, -5.0], control=("bars", 0.55, 1.75, 1.3, 15)),
+    # armoured truck: upright seat, small thick windscreen panes
+    "ArmoredTruck": dict(eye=[-1.4, 6.7, -0.3], control=("wheel", 1.5, 1.25, 0.7, 30)),
+    # light aircraft (tandem bubble canopy): yoke, six-pack panel ahead
+    "SmallPlane": dict(eye=[-0.75, 6.0, -3.95], control=("yoke", 1.5, 1.05, 0.95, 8)),
+    # cargo plane: captain's (left) seat on the flight deck
+    "CargoPlane": dict(eye=[-1.3, 9.6, -13.4], control=("yoke", 1.4, 1.2, 1.0, 8)),
+    # helicopter: pilot in the right seat; cyclic between the knees, collective on the left
+    "Helicopter": dict(eye=[1.3, 5.55, -2.35], control=dict(type="sticks", right=[1.3, 3.85, -3.45], left=[0.5, 3.3, -2.8])),
+    # steam locomotive: engineer on the right of the cab (US practice), front window beside the boiler
+    "Train": dict(eye=[2.75, 10.4, 8.5], control=dict(type="levers", right=[2.0, 9.45, 7.5], left=[1.5, 8.9, 7.55])),
+    # bulldozer: ROPS cab, left joystick steers, right joystick works the blade
+    "Bulldozer": dict(eye=[0.0, 8.6, 4.0], control=dict(type="sticks", right=[0.85, 6.6, 3.2], left=[-0.85, 6.6, 3.2])),
+    # racing kart: low seat, small wheel, legs straight out
+    "GoKart": dict(eye=[0.0, 3.5, 1.2], control=("wheel", 1.85, 1.2, 0.55, 36)),
+    # rocket sled (after Sonic Wind No. 1): open seat on top, hand grips either side
+    "RocketSled": dict(eye=[0.0, 4.75, -3.6], control=dict(type="grips", right=[0.95, 3.2, -4.4], left=[-0.95, 3.2, -4.4])),
+}
+
+
+def apply_cockpits():
+    for key, c in COCKPITS.items():
+        eye = c["eye"]
+        ctl = c["control"]
+        if isinstance(ctl, tuple):
+            kind, f, down, size, tilt = ctl
+            ctl = dict(type=kind, pos=fwd(eye, f, -down), tilt=tilt)
+            ctl["radius" if kind == "wheel" else "width"] = size
+        V[key]["cockpit"] = dict(eye=eye, control=ctl, pitch=c.get("pitch", -8))
+        # the avatar's root sits at the seat centre with the head straight above it
+        V[key]["seat"] = [eye[0], round(eye[1] - SEATED_EYE - 0.3, 3), eye[2]]
+
+
+apply_cockpits()
+
+
 # ---------------------------------------------------------------- emit
 def lua(v, ind=0):
     pad = "\t" * ind

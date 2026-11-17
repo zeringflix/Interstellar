@@ -164,13 +164,9 @@ def register(builder, spec, car_dims):
                                    [(x - sgn * 0.55, y + 0.3, z + 0.2), (x - sgn * 0.55, y - 0.3, z + 0.2), (x - sgn * 0.55, y - 0.3, z + 0.08), (x - sgn * 0.55, y + 0.3, z + 0.08)]], white)
                 G["Body"].append(leg)
                 G["Trim"].append(cyl("stub", 0.1, 0.6, (x - sgn * 0.3, y, z), M.STEEL(), "X", segs=8))
-        # cabin
-        for sx in (-0.75, 0.75):
-            for yy in (4.2, 1.9):
-                G["Trim"].append(box("seat", (1.1, 1.0, 0.25), (sx, yy, cz - 0.4), M.SEAT(), bev=0.08))
-                G["Trim"].append(box("seatback", (1.1, 0.22, 1.4), (sx, yy - 0.5, cz + 0.35), M.SEAT(), bev=0.08, rot=(math.radians(-10), 0, 0)))
-        G["Trim"].append(box("panel", (3.0, 0.5, 0.9), (0, 6.3, cz + 0.2), M.INTERIOR(), bev=0.12))
-        G["Trim"].append(box("floor", (3.0, 6.5, 0.12), (0, 3.0, cz - 0.75), M.INTERIOR(), bev=0.02))
+        # cabin: four seats, panel and dual yokes (see rcp_interior.light_aircraft)
+        import rcp_interior as I
+        I.light_aircraft(s, G, body, cz, 6.3, (-1.9, -0.4, cz - 0.9), (1.9, 7.15, cz + 3.0))
         return G
 
     @builder("CargoPlane")
@@ -261,6 +257,9 @@ def register(builder, spec, car_dims):
                 sgn = 1 if x > 0 else -1
                 G["Trim"].append(tube("mainstrut", [(x - sgn * 0.2, y, 3.2), (x - sgn * 0.75, y, z)], 0.24, M.CHROME(), segs=12))
                 G["Trim"].append(cyl("mainaxle", 0.14, 1.4, (x - sgn * 0.4, y, z), M.STEEL(), "X", segs=8))
+        # flight deck in the nose (see rcp_interior.flight_deck)
+        import rcp_interior as I
+        I.flight_deck(s, G, body, s["seat"][1] + 0.3 - 1.25, 15.25, 3.6, 10.6)
         return G
 
     @builder("Helicopter")
@@ -349,14 +348,10 @@ def register(builder, spec, car_dims):
         trotor = M.join(TR, "Spin2")
         M.place(trotor, (tp[0], -tp[2], tp[1]))
         G["Spin"].append(trotor)
-        # cabin
-        for sx in (-1.3, 1.3):
-            G["Trim"].append(box("seat", (1.4, 1.2, 0.3), (sx, 2.6, 2.6), M.SEAT(), bev=0.1))
-            G["Trim"].append(box("seatback", (1.4, 0.25, 1.7), (sx, 2.0, 3.45), M.SEAT(), bev=0.1, rot=(math.radians(-10), 0, 0)))
-            G["Trim"].append(tube("cyclic", [(sx, 3.6, 2.2), (sx, 3.5, 3.3)], 0.05, M.DARK(), segs=6))
+        # cabin: pilot (right) and co-pilot seats, cyclics, collectives, pedals, console; bench behind
+        import rcp_interior as I
+        I.helicopter(s, G, body, (-3.1, -1.6, 1.6), (3.1, 4.0, 6.9))
         G["Trim"].append(box("bench", (4.6, 1.3, 0.3), (0, -0.4, 2.6), M.SEAT(), bev=0.1))
         G["Trim"].append(box("benchback", (4.6, 0.25, 1.7), (0, -1.1, 3.45), M.SEAT(), bev=0.1))
-        G["Trim"].append(box("floor", (5.2, 7.0, 0.12), (0, 1.5, 2.25), M.INTERIOR(), bev=0.02))
-        G["Trim"].append(box("console", (1.3, 1.0, 1.5), (0, 4.4, 2.9), M.INTERIOR(), bev=0.15))
         G["Trim"].append(box("panel", (1.9, 0.4, 0.9), (0, 4.8, 3.9), M.INTERIOR(), bev=0.12))
         return G

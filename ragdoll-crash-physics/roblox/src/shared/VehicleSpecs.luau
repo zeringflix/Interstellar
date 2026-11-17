@@ -47,7 +47,7 @@ return {
 				{ pos = { -3.0, 1.25, 4.65 }, radius = 1.25, width = 1.0 },
 				{ pos = { 3.0, 1.25, 4.65 }, radius = 1.25, width = 1.0 },
 			},
-			seat = { -1.75, 2.5, 0.2 },
+			seat = { -1.75, 1.38, -0.3 },
 			key = "Sedan",
 			display = "Sedan",
 			category = "Cars",
@@ -57,6 +57,11 @@ return {
 			spawn = "Road",
 			mass = 420,
 			impact = 1.0,
+			cockpit = {
+				eye = { -1.75, 4.43, -0.3 },
+				control = { type = "wheel", pos = { -1.75, 3.18, -1.85 }, tilt = 25, radius = 0.6 },
+				pitch = -8,
+			},
 		},
 		SportsCar = {
 			carStyle = true,
@@ -87,7 +92,7 @@ return {
 				{ pos = { -3.0, 1.15, 4.805 }, radius = 1.15, width = 1.2 },
 				{ pos = { 3.0, 1.15, 4.805 }, radius = 1.15, width = 1.2 },
 			},
-			seat = { -1.8, 1.85, 0.8 },
+			seat = { -1.8, 0.2, 0.9 },
 			key = "SportsCar",
 			display = "Sports Car",
 			category = "Cars",
@@ -97,6 +102,11 @@ return {
 			spawn = "Road",
 			mass = 360,
 			impact = 1.0,
+			cockpit = {
+				eye = { -1.8, 3.25, 0.9 },
+				control = { type = "wheel", pos = { -1.8, 2.2, -0.55 }, tilt = 20, radius = 0.52 },
+				pitch = -8,
+			},
 		},
 		PoliceCar = {
 			carStyle = true,
@@ -129,7 +139,7 @@ return {
 				{ pos = { -3.0, 1.25, 4.805 }, radius = 1.25, width = 1.0 },
 				{ pos = { 3.0, 1.25, 4.805 }, radius = 1.25, width = 1.0 },
 			},
-			seat = { -1.75, 2.5, 0.2 },
+			seat = { -1.75, 1.38, -0.35 },
 			key = "PoliceCar",
 			display = "Police Car",
 			category = "Cars",
@@ -139,6 +149,11 @@ return {
 			spawn = "Road",
 			mass = 450,
 			impact = 1.0,
+			cockpit = {
+				eye = { -1.75, 4.43, -0.35 },
+				control = { type = "wheel", pos = { -1.75, 3.18, -1.9 }, tilt = 25, radius = 0.6 },
+				pitch = -8,
+			},
 		},
 		MuscleCar = {
 			carStyle = true,
@@ -171,7 +186,7 @@ return {
 				{ pos = { -3.0, 1.4, 5.27 }, radius = 1.4, width = 1.4 },
 				{ pos = { 3.0, 1.4, 5.27 }, radius = 1.4, width = 1.4 },
 			},
-			seat = { -1.85, 2.3, 1.2 },
+			seat = { -1.85, 0.95, 1.0 },
 			key = "MuscleCar",
 			display = "Muscle Car",
 			category = "Cars",
@@ -181,6 +196,11 @@ return {
 			spawn = "Road",
 			mass = 520,
 			impact = 1.0,
+			cockpit = {
+				eye = { -1.85, 4.0, 1.0 },
+				control = { type = "wheel", pos = { -1.85, 2.8, -0.6 }, tilt = 22, radius = 0.68 },
+				pitch = -8,
+			},
 		},
 		PickupTruck = {
 			carStyle = true,
@@ -211,7 +231,7 @@ return {
 				{ pos = { -3.15, 1.7, 5.58 }, radius = 1.7, width = 1.3 },
 				{ pos = { 3.15, 1.7, 5.58 }, radius = 1.7, width = 1.3 },
 			},
-			seat = { -1.9, 3.3, -2.0 },
+			seat = { -1.9, 2.6, 0.0 },
 			key = "PickupTruck",
 			display = "Pickup Truck",
 			category = "Heavy",
@@ -221,6 +241,11 @@ return {
 			spawn = "Road",
 			mass = 700,
 			impact = 1.2,
+			cockpit = {
+				eye = { -1.9, 5.65, 0.0 },
+				control = { type = "wheel", pos = { -1.9, 4.35, -1.6 }, tilt = 30, radius = 0.7 },
+				pitch = -8,
+			},
 		},
 		MonsterTruck = {
 			carStyle = true,
@@ -253,7 +278,7 @@ return {
 				{ pos = { -5.6, 3.6, 4.96 }, radius = 3.6, width = 3.0 },
 				{ pos = { 5.6, 3.6, 4.96 }, radius = 3.6, width = 3.0 },
 			},
-			seat = { -2.0, 6.2, 0.0 },
+			seat = { 0.0, 6.55, -0.5 },
 			key = "MonsterTruck",
 			display = "Monster Truck",
 			category = "Heavy",
@@ -263,6 +288,11 @@ return {
 			spawn = "Road",
 			mass = 1400,
 			impact = 1.5,
+			cockpit = {
+				eye = { 0.0, 9.6, -0.5 },
+				control = { type = "wheel", pos = { 0.0, 8.4, -1.95 }, tilt = 25, radius = 0.55 },
+				pitch = -8,
+			},
 		},
 		CityBus = {
 			parts = {
@@ -287,7 +317,7 @@ return {
 				{ pos = { -3.75, 1.9, 10.5 }, radius = 1.9, width = 1.5 },
 				{ pos = { 3.75, 1.9, 10.5 }, radius = 1.9, width = 1.5 },
 			},
-			seat = { -2.2, 4.3, -15.5 },
+			seat = { -2.3, 3.85, -15.2 },
 			key = "CityBus",
 			display = "City Bus",
 			category = "Heavy",
@@ -297,6 +327,11 @@ return {
 			spawn = "Road",
 			mass = 1800,
 			impact = 1.6,
+			cockpit = {
+				eye = { -2.3, 6.9, -15.2 },
+				control = { type = "wheel", pos = { -2.3, 5.45, -16.65 }, tilt = 62, radius = 0.95 },
+				pitch = -8,
+			},
 		},
 		DumpTruck = {
 			parts = {
@@ -326,7 +361,7 @@ return {
 				{ pos = { -4.8, 2.5, 3.0 }, radius = 2.5, width = 2.0 },
 				{ pos = { 4.8, 2.5, 3.0 }, radius = 2.5, width = 2.0 },
 			},
-			seat = { -2.2, 5.2, -9.4 },
+			seat = { -2.2, 5.25, -7.6 },
 			key = "DumpTruck",
 			display = "Dump Truck",
 			category = "Heavy",
@@ -336,6 +371,11 @@ return {
 			spawn = "Road",
 			mass = 2600,
 			impact = 1.9,
+			cockpit = {
+				eye = { -2.2, 8.3, -7.6 },
+				control = { type = "wheel", pos = { -2.2, 6.95, -9.1 }, tilt = 40, radius = 0.85 },
+				pitch = -8,
+			},
 		},
 		Tank = {
 			parts = {
@@ -367,7 +407,7 @@ return {
 				{ name = "RoadWheelR4", size = { 0.5, 2.3, 2.3 }, pos = { 7.7, 1.3, 9 }, color = "#3b4a2d", mat = "metal", shape = "cyl", axis = "x", face = "front", collide = false },
 			},
 			wheels = {  },
-			seat = { 0, 4.2, -3.0 },
+			seat = { -2.2, 2.1, -5.0 },
 			turret = {
 				"TurretRing",
 				"Turret",
@@ -386,6 +426,11 @@ return {
 			spawn = "TankField",
 			mass = 9000,
 			impact = 2.6,
+			cockpit = {
+				eye = { -2.2, 5.15, -5.0 },
+				control = { type = "bars", pos = { -2.2, 3.4, -5.55 }, tilt = 15, width = 1.3 },
+				pitch = -8,
+			},
 		},
 		ArmoredTruck = {
 			parts = {
@@ -408,7 +453,7 @@ return {
 				{ pos = { -4.7, 2.1, 6.5 }, radius = 2.1, width = 1.7 },
 				{ pos = { 4.7, 2.1, 6.5 }, radius = 2.1, width = 1.7 },
 			},
-			seat = { -2.0, 5.3, 0.5 },
+			seat = { -1.4, 3.65, -0.3 },
 			key = "ArmoredTruck",
 			display = "Armored Truck",
 			category = "Military",
@@ -418,6 +463,11 @@ return {
 			spawn = "TankField",
 			mass = 2400,
 			impact = 1.8,
+			cockpit = {
+				eye = { -1.4, 6.7, -0.3 },
+				control = { type = "wheel", pos = { -1.4, 5.45, -1.8 }, tilt = 30, radius = 0.7 },
+				pitch = -8,
+			},
 		},
 		SmallPlane = {
 			parts = {
@@ -442,7 +492,7 @@ return {
 				{ pos = { -3.2, 1.0, 0.5 }, radius = 1.0, width = 0.7 },
 				{ pos = { 3.2, 1.0, 0.5 }, radius = 1.0, width = 0.7 },
 			},
-			seat = { 0, 3.4, -3.52 },
+			seat = { -0.75, 2.95, -3.95 },
 			spinners = {
 				{ parts = {
 	"PropHub0",
@@ -459,6 +509,11 @@ return {
 			spawn = "Runway",
 			mass = 500,
 			impact = 1.3,
+			cockpit = {
+				eye = { -0.75, 6.0, -3.95 },
+				control = { type = "yoke", pos = { -0.75, 4.95, -5.45 }, tilt = 8, width = 0.95 },
+				pitch = -8,
+			},
 		},
 		CargoPlane = {
 			parts = {
@@ -488,7 +543,7 @@ return {
 				{ pos = { -4.8, 1.5, 0.75 }, radius = 1.5, width = 1.05 },
 				{ pos = { 4.8, 1.5, 0.75 }, radius = 1.5, width = 1.05 },
 			},
-			seat = { 0, 6.6, -5.28 },
+			seat = { -1.3, 6.55, -13.4 },
 			spinners = {
 				{ parts = {
 	"PropHub0",
@@ -510,6 +565,11 @@ return {
 			spawn = "Runway",
 			mass = 3200,
 			impact = 2.2,
+			cockpit = {
+				eye = { -1.3, 9.6, -13.4 },
+				control = { type = "yoke", pos = { -1.3, 8.4, -14.8 }, tilt = 8, width = 1.0 },
+				pitch = -8,
+			},
 		},
 		Helicopter = {
 			parts = {
@@ -533,7 +593,7 @@ return {
 				{ name = "SkidLegRR", size = { 0.3, 1.6, 0.3 }, pos = { 3.0, 1.1, 2.5 }, color = "#30333a", mat = "metal", shape = "box", axis = "x", face = "front", collide = false },
 			},
 			wheels = {  },
-			seat = { -1.3, 3.2, -2.0 },
+			seat = { 1.3, 2.5, -2.35 },
 			spinners = {
 				{ parts = {
 	"RotorHub",
@@ -554,6 +614,11 @@ return {
 			spawn = "Helipad",
 			mass = 900,
 			impact = 1.4,
+			cockpit = {
+				eye = { 1.3, 5.55, -2.35 },
+				control = { type = "sticks", right = { 1.3, 3.85, -3.45 }, left = { 0.5, 3.3, -2.8 } },
+				pitch = -8,
+			},
 		},
 		Train = {
 			parts = {
@@ -583,7 +648,7 @@ return {
 				{ name = "SideRodR", size = { 0.3, 0.5, 14.5 }, pos = { 4.8, 2.1, 0 }, color = "#9aa0a8", mat = "metal", shape = "box", axis = "x", face = "front", collide = false },
 			},
 			wheels = {  },
-			seat = { 0, 5.2, 12 },
+			seat = { 2.75, 7.35, 8.5 },
 			key = "Train",
 			display = "Train",
 			category = "Special",
@@ -593,6 +658,11 @@ return {
 			spawn = "Rail",
 			mass = 20000,
 			impact = 3.2,
+			cockpit = {
+				eye = { 2.75, 10.4, 8.5 },
+				control = { type = "levers", right = { 2.0, 9.45, 7.5 }, left = { 1.5, 8.9, 7.55 } },
+				pitch = -8,
+			},
 		},
 		Bulldozer = {
 			parts = {
@@ -611,7 +681,7 @@ return {
 				{ name = "BrakeR", size = { 1.0, 0.6, 0.2 }, pos = { 3, 3.8, 7.05 }, color = "#d21f1f", mat = "light", shape = "box", axis = "x", face = "front", collide = false },
 			},
 			wheels = {  },
-			seat = { 0, 5.3, 3.4 },
+			seat = { 0.0, 5.55, 4.0 },
 			key = "Bulldozer",
 			display = "Bulldozer",
 			category = "Special",
@@ -621,6 +691,11 @@ return {
 			spawn = "TankField",
 			mass = 6000,
 			impact = 2.2,
+			cockpit = {
+				eye = { 0.0, 8.6, 4.0 },
+				control = { type = "sticks", right = { 0.85, 6.6, 3.2 }, left = { -0.85, 6.6, 3.2 } },
+				pitch = -8,
+			},
 		},
 		GoKart = {
 			parts = {
@@ -639,7 +714,7 @@ return {
 				{ pos = { -2.4, 0.8, 2.7 }, radius = 0.8, width = 0.8 },
 				{ pos = { 2.4, 0.8, 2.7 }, radius = 0.8, width = 0.8 },
 			},
-			seat = { 0, 1.1, 0.6 },
+			seat = { 0.0, 0.45, 1.2 },
 			key = "GoKart",
 			display = "Go-Kart",
 			category = "Special",
@@ -649,6 +724,11 @@ return {
 			spawn = "Road",
 			mass = 140,
 			impact = 0.7,
+			cockpit = {
+				eye = { 0.0, 3.5, 1.2 },
+				control = { type = "wheel", pos = { 0.0, 2.3, -0.65 }, tilt = 36, radius = 0.55 },
+				pitch = -8,
+			},
 		},
 		RocketSled = {
 			parts = {
@@ -667,7 +747,7 @@ return {
 				{ name = "FinR", size = { 0.3, 2.4, 3 }, pos = { 2.6, 2.6, 6 }, color = "#e2342b", mat = "body", shape = "box", axis = "x", face = "front", collide = false },
 			},
 			wheels = {  },
-			seat = { 0, 2.0, -2.6 },
+			seat = { 0.0, 1.7, -3.6 },
 			key = "RocketSled",
 			display = "Rocket Sled",
 			category = "Special",
@@ -677,6 +757,11 @@ return {
 			spawn = "SledTrack",
 			mass = 600,
 			impact = 1.6,
+			cockpit = {
+				eye = { 0.0, 4.75, -3.6 },
+				control = { type = "grips", right = { 0.95, 3.2, -4.4 }, left = { -0.95, 3.2, -4.4 } },
+				pitch = -8,
+			},
 		},
 	},
 }

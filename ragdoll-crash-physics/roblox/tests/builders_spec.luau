@@ -32,6 +32,25 @@ for _, key in Specs.Order do
 		local root = model.PrimaryPart
 		check(key .. " has root", root and root.Name == "Root")
 		check(key .. " has seat + force handles", model:FindFirstChild("DriverSeat") and root:FindFirstChild("Drive") and root:FindFirstChild("Steer"))
+		-- cockpit: the driver's eye point sits straight over the seat at a Roblox avatar's seated
+		-- height, and both hand grips are within an R15 avatar's reach of its shoulders
+		local ck = spec.cockpit
+		check(key .. " has cockpit data", ck and ck.eye and ck.control, ck)
+		if ck then
+			local eye = roblox.Vector3.new(ck.eye[1], ck.eye[2], ck.eye[3])
+			local seatPos = roblox.Vector3.new(spec.seat[1], spec.seat[2], spec.seat[3])
+			check(key .. " eye straight above the seat", math.abs(eye.X - seatPos.X) < 1e-3 and math.abs(eye.Z - seatPos.Z) < 1e-3)
+			check(key .. " eye at seated height", math.abs(eye.Y - seatPos.Y - 3.05) < 1e-3, eye.Y - seatPos.Y)
+			local gR, gL = root:FindFirstChild("RCP_GripR", true), root:FindFirstChild("RCP_GripL", true)
+			check(key .. " hand grips built", gR and gL)
+			if gR and gL then
+				for _, g in { { gR, 1 }, { gL, -1 } } do
+					local shoulder = eye + roblox.Vector3.new(g[2] * 1.0, -0.85, 0)
+					local d = ((g[1].Parent.CFrame * g[1].CFrame).Position - shoulder).Magnitude
+					check(key .. " grip " .. g[1].Name .. " within reach (" .. string.format("%.2f", d) .. ")", d < 2.4 and d > 0.4, d)
+				end
+			end
+		end
 		local mass = root.Size.X * root.Size.Y * root.Size.Z * root.CustomPhysicalProperties.Density
 		check(key .. " mass ~ spec", math.abs(mass - spec.mass) / spec.mass < 0.02, { mass, spec.mass })
 		local colliders, wheels, lowest = 0, 0, math.huge
@@ -119,7 +138,7 @@ do
 	local sedan = roblox.Instance.new("Model")
 	sedan.Name = "Sedan"
 	sedan.Parent = imported
-	for _, n in { "Sedan_Body", "Sedan_Trim", "Sedan_Glass", "Sedan_Wheel1" } do
+	for _, n in { "Sedan_Body", "Sedan_Trim", "Sedan_Glass", "Sedan_Wheel1", "Sedan_Interior", "Sedan_Steer" } do
 		local mp = roblox.Instance.new("MeshPart")
 		mp.Name = n
 		mp.Parent = sedan
@@ -143,6 +162,16 @@ do
 		check("textured import: wheel mesh welded to the wheel", model.Sedan_Wheel1:FindFirstChildOfClass("WeldConstraint") ~= nil)
 		check("textured import: stand-in parts hidden", model.Root.Transparency == 1 and model.Body.Transparency == 1)
 		check("textured import: flagged", model:GetAttribute("DetailedMesh") == true)
+		check("textured import: interior mesh welded in", model:FindFirstChild("Sedan_Interior") and model.Sedan_Interior:FindFirstChildOfClass("WeldConstraint") ~= nil)
+		local joint = model.Root:FindFirstChild("SteerJoint")
+		check("textured import: steering wheel on a turning joint", joint and joint:IsA("Motor6D") and joint.Part1 == model:FindFirstChild("Sedan_Steer"))
+		check("textured import: hand grips ride on the steering wheel", model.Sedan_Steer:FindFirstChild("RCP_GripR") and model.Sedan_Steer:FindFirstChild("RCP_GripL"))
+		if joint then
+			local pivot = model.Root.CFrame * joint.C0
+			local ctl = Specs.Vehicles.Sedan.cockpit.control
+			check("textured import: joint pivots at the wheel centre", (pivot.Position - roblox.Vector3.new(ctl.pos[1], ctl.pos[2], ctl.pos[3])).Magnitude < 1e-3)
+			check("textured import: joint keeps the wheel where it was", ((model.Root.CFrame * joint.C0 * joint.C1:Inverse()).Position - model.Sedan_Steer.CFrame.Position).Magnitude < 1e-3)
+		end
 	end
 end
 

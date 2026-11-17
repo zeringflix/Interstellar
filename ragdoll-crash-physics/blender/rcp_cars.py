@@ -455,7 +455,7 @@ def details(surf, p, paint, G):
 
 
 def new_groups():
-    return dict(Body=[], Glass=[], Lights=[], Trim=[], Wheels=[], Spin=[], Turret=[])
+    return dict(Body=[], Glass=[], Lights=[], Trim=[], Interior=[], Steer=[], Wheels=[], Spin=[], Turret=[])
 
 
 def build_car(p, wheels, extras=None, extra_cut=None):
@@ -479,7 +479,8 @@ def build_car(p, wheels, extras=None, extra_cut=None):
     if glass:
         G["Glass"].append(glass)
     if p.get("interior", True):
-        G["Trim"] += interior(p)
+        import rcp_interior as I
+        I.car(p, G, body, p.get("interior_style", "sedan"))
     details(surf, p, paint, G)
     # wheel-well liners + axle stubs
     ar = p["wheel_r"] * p.get("arch", 1.2)

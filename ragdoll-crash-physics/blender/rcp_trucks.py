@@ -18,6 +18,49 @@ def place_wheels(G, wheels, style, rim=None, rim_frac=0.6):
         G["Wheels"].append(ob)
 
 
+def cut_rect(ob, side, rect):
+    """Cut a rectangular opening through a body mesh where a window pane sits. side 'L'/'R' takes
+    rect as (y0, z0, y1, z1) on the faces facing that side; 'T' takes (x0, y0, x1, y1) on the faces
+    facing up/forward (a sloped windscreen plate)."""
+    import bmesh
+    from mathutils import Vector
+    u0, v0, u1, v1 = rect
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+
+    def facing(f):
+        n = f.normal
+        if side == "L":
+            return n.x < -0.5
+        if side == "R":
+            return n.x > 0.5
+        if side == "U":
+            return n.z > 0.5
+        return n.z > 0.25 and n.y > 0.05
+
+    def coords(c):
+        return (c.y, c.z) if side in "LR" else (c.x, c.y)
+
+    pad = 0.4
+    for axis, val in ((0, u0), (0, u1), (1, v0), (1, v1)):
+        faces = [f for f in bm.faces if facing(f) and u0 - pad <= coords(f.calc_center_median())[0] <= u1 + pad
+                 and v0 - pad <= coords(f.calc_center_median())[1] <= v1 + pad]
+        if not faces:
+            continue
+        geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
+        if side in "LR":
+            no = Vector((0, 1, 0)) if axis == 0 else Vector((0, 0, 1))
+            co = Vector((0, val, 0)) if axis == 0 else Vector((0, 0, val))
+        else:
+            no = Vector((1, 0, 0)) if axis == 0 else Vector((0, 1, 0))
+            co = Vector((val, 0, 0)) if axis == 0 else Vector((0, val, 0))
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, dist=1e-5)
+    gone = [f for f in bm.faces if facing(f) and u0 < coords(f.calc_center_median())[0] < u1 and v0 < coords(f.calc_center_median())[1] < v1]
+    bmesh.ops.delete(bm, geom=gone, context="FACES")
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
 def shell_from(stations, materials, subdiv=2, sharp=True):
     rings = [s[0] for s in stations]
     flags = [s[1] for s in stations]
@@ -168,11 +211,8 @@ def register(builder, spec, car_dims):
             G["Trim"].append(tube("handrail", [(sx, -15.5, roof - 0.9), (sx, 14.5, roof - 0.9)], 0.05, yellow, segs=8))
             for yy in (-12, -6, 0.2, 6, 12):
                 G["Trim"].append(tube("stanchion", [(sx, yy, fz + 0.1), (sx, yy, roof - 0.9)], 0.05, yellow, segs=8))
-        G["Trim"] += [box("drvseat", (1.6, 1.4, 0.3), (-2.4, 15.4, fz + 1.3), M.SEAT(), bev=0.1), box("drvback", (1.6, 0.3, 2.0), (-2.4, 14.7, fz + 2.2), M.SEAT(), bev=0.1),
-                      box("dash", (8.0, 1.0, 1.3), (0, 17.0, fz + 1.5), M.INTERIOR(), bev=0.25), box("farebox", (0.6, 0.6, 2.2), (0.9, 16.0, fz + 1.2), M.STEEL(), bev=0.06),
-                      box("cabscreen", (0.08, 2.2, 3.4), (-0.9, 15.0, fz + 2.4), M.GLASS(), bev=0.01)]
-        ring = [(-2.4 + 0.8 * math.cos(a), 16.3 - 0.25 * math.sin(a), fz + 2.5 + 0.75 * math.sin(a)) for a in [M.TAU * k / 20 for k in range(20)]]
-        G["Trim"].append(tube("swheel", ring, 0.06, M.PLASTIC(), segs=8, closed=True))
+        import rcp_interior as I
+        I.bus(s, G, body, fz, roof, hw)
         for w in ws[::2]:
             for sx in (-1, 1):
                 cup = C.arch_liner(w["radius"] * 1.13, 2.4, 2.8)
@@ -206,6 +246,8 @@ def register(builder, spec, car_dims):
         body, glass = C.split_glass(shell)
         G["Body"].append(body)
         G["Glass"].append(glass)
+        import rcp_interior as I
+        I.heavy_truck(s, G, body, (-hw, 6.4, c), (hw, 9.95, roof), hood)
         P = surf.project
         G["Trim"].append(P("grille", "F", (-2.5, 3.6, 2.5, 5.9), M.DARK(), 0.02, res=0.1, round_r=0.2))
         for k in range(8):
@@ -315,10 +357,15 @@ def register(builder, spec, car_dims):
         P = surf.project
         glassm = M.mat("ArmourGlass", "#263a33", rough=0.05, alpha=0.6)
         # windscreen (two panes) + side / rear vision blocks, each in a bolted frame
+        def frame_bars(name, side, o, w=0.14):
+            """A bolted frame round an opening: four bars, so the window stays see-through."""
+            u0, v0, u1, v1 = o
+            for r in ((u0 - w, v0 - w, u1 + w, v0), (u0 - w, v1, u1 + w, v1 + w), (u0 - w, v0, u0, v1), (u1, v0, u1 + w, v1)):
+                G["Trim"].append(P(name, side, r, dark, 0.03, res=0.07, thickness=0.09))
+
         def pane(side, o, name="pane"):
-            fr = P(name + "frame", side, (o[0] - 0.14, o[1] - 0.14, o[2] + 0.14, o[3] + 0.14), dark, 0.03, res=0.1, thickness=0.09)
+            frame_bars(name + "frame", side, o)
             gl = P(name, side, o, glassm, 0.13, res=0.1)
-            G["Trim"].append(fr)
             G["Glass"].append(gl)
             pts = []
             for u in (o[0] - 0.07, o[2] + 0.07):
@@ -328,9 +375,8 @@ def register(builder, spec, car_dims):
                         pts.append(loc + nrm * 0.13)
             G["Trim"] += M.bolts(pts, 0.045, M.STEEL(), "X" if side in "LR" else "Y", 0.06)
         for x0 in (-2.55, 0.25):
-            fr = P("wsframe", "T", (x0 - 0.12, 1.75, x0 + 2.42, 3.3), dark, 0.03, res=0.1, thickness=0.09)
+            frame_bars("wsframe", "T", (x0, 1.87, x0 + 2.3, 3.18), w=0.12)
             gl = P("ws", "T", (x0, 1.87, x0 + 2.3, 3.18), glassm, 0.13, res=0.1)
-            G["Trim"].append(fr)
             G["Glass"].append(gl)
         for side in ("L", "R"):
             sgn = 1 if side == "R" else -1
@@ -398,6 +444,14 @@ def register(builder, spec, car_dims):
             G["Trim"].append(box("jerry", (0.5, 1.1, 1.5), (2.3 + k * 0.6, -10.35, 4.6), M.mat("Jerry", "#3b4a2d", rough=0.6), bev=0.1))
         loc, _ = surf.point("R", -5.0, 4.0)
         G["Trim"].append(M.text("id", "RCP-07", 0.6, (loc.x + 0.04, -5.2, 4.0), (math.pi / 2, 0, math.pi / 2), M.matte("#d9d9d0", 0.6)))
+        # the panes were only laid on the armour; cut the openings behind them so the crew can see out
+        for x0 in (-2.55, 0.25):
+            cut_rect(shell, "T", (x0, 1.87, x0 + 2.3, 3.18))
+        for side in ("L", "R"):
+            for o in ((-0.2, 5.75, 1.3, 6.75), (-4.6, 5.9, -3.0, 6.7), (-7.9, 5.9, -6.3, 6.7)):
+                cut_rect(shell, side, o)
+        import rcp_interior as I
+        I.armoured(s, G, shell, (-3.6, -2.4, 2.4), (3.6, 1.55, 7.6))
         loc, _ = surf.point("L", -5.0, 4.0)
         G["Trim"].append(M.text("id", "RCP-07", 0.6, (loc.x - 0.04, -5.2, 4.0), (math.pi / 2, 0, -math.pi / 2), M.matte("#d9d9d0", 0.6)))
         for y in (6.5, -6.5):

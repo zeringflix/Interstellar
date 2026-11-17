@@ -79,7 +79,7 @@ FOUR_DOOR = dict(b_pillar=-0.5, b_half=0.17, roof_w=0.78, roof_drop=0.3, seat_ro
 def sedan():
     p = car_dims("Sedan", L=15.6, W=7.0, color="#2f6fd0", clear=0.75, belt=3.0, roof=4.85, hood_front=2.72, hood_cowl=3.08,
                  **FOUR_DOOR, cowl=2.9, ws_top=0.75, roof_hold=-2.3, roof_rear=-3.5, deck=-5.25, trunk=3.2,
-                 doors=[2.95, -0.33, -3.6], c_slant=(-3.45, -2.35), arch=1.14)
+                 doors=[2.95, -0.33, -3.6], c_slant=(-3.45, -2.35), arch=1.14, interior_style="sedan")
     return C.build_car(p, spec("Sedan")["wheels"])
 
 
@@ -90,7 +90,7 @@ def sports():
                  tail_w=0.92, wheel_style="sport10", rim_color="#2a2c30", caliper="#d11a1a", crown=0.05, flare=0.04,
                  headlight=(0.52, 0.93, 1.35, 1.72), grille=(0.5, 0.78, 1.25), grille_bars=2, chrome=False,
                  doors=[2.22, -2.0], seat_rows=[0.5], exhausts=(-1.2, -0.6, 0.6, 1.2), taillight=(0.3, 0.95, 2.2, 2.48),
-                 flush_handles=True, handle_drop=0.45, handle_gap=0.14, single_window=True)
+                 flush_handles=True, handle_drop=0.45, handle_gap=0.14, single_window=True, interior_style="sports")
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
@@ -115,7 +115,7 @@ def police():
     p = car_dims("PoliceCar", L=16.0, W=7.0, color="#f2f3f5", clear=0.78, belt=3.02, roof=4.85, hood_front=2.75, hood_cowl=3.1,
                  **FOUR_DOOR, cowl=3.0, ws_top=0.85, roof_hold=-2.35, roof_rear=-3.55, deck=-5.35, trunk=3.22,
                  doors=[3.05, -0.33, -3.65], c_slant=(-3.5, -2.4), arch=1.14, wheel_style="steel",
-                 rim_color="#1c1d20", chrome=False, antenna=False, black_handles=True)
+                 rim_color="#1c1d20", chrome=False, antenna=False, black_handles=True, interior_style="police")
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
@@ -160,7 +160,7 @@ def muscle():
                  cowl=2.0, ws_top=0.2, roof_rear=-2.6, deck=-6.2, trunk=3.22, b_pillar=-2.0, arch=1.14, roof_w=0.72, nose_w=0.92,
                  tail_w=0.94, wheel_style="alloy5", rim_color="#d8dbe0", doors=[2.15, -2.2], seat_rows=[-0.3, -2.4], handle_drop=0.42, handle_gap=0.14, single_window=True,
                  headlight=(0.62, 0.9, 2.05, 2.5), grille=(0.58, 1.75, 2.55), grille_bars=5, exhausts=(-2.4, 2.4), flare=0.035,
-                 taillight=(0.2, 0.95, 2.55, 2.95))
+                 taillight=(0.2, 0.95, 2.55, 2.95), interior_style="muscle")
 
     def extras(p, surf, paint, G):
         white = M.paint("#f1f1f1")
@@ -192,7 +192,7 @@ def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
                  cowl=3.9, ws_top=2.0, roof_rear=-2.0, deck=-2.15, c_pillar=0.55, trunk=4.3, b_pillar=0.0, arch=1.13, roof_w=0.88, nose_w=0.97, tail_w=0.99,
                  wheel_style=style, rim_color="#c9ccd1", doors=[3.4, -1.55], seat_rows=[0.4], crown=0.03, flare=0.0, sharp=True, arch_power=3.2,
                  headlight=(0.58, 0.92, 2.95, 3.5), grille=(0.52, 2.2, 3.55), grille_bars=4, exhausts=(2.6,), taillight=(0.86, 0.97, 2.9, 3.9),
-                 plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25, single_window=True)
+                 plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25, single_window=True, interior_style="pickup")
     p.update(over)
 
     def extras(p, surf, paint, G):
@@ -233,13 +233,15 @@ def monster():
     # Built like a real monster truck (see the reference photo): a fibreglass body shell with no
     # working doors or handles and open side windows, sat on an exposed tube chassis with a
     # mid-mounted V8, four bypass shocks per corner, beadlock wheels on huge lugged tyres.
-    p, G = pickup_body("MonsterTruck", "#7a22d6", [], style="offroad", handles=False, fuel=False, side_glass=False, chrome=False)
+    p, G = pickup_body("MonsterTruck", "#7a22d6", [], style="offroad", handles=False, fuel=False, side_glass=False, chrome=False, interior=False)
     for ob in G["Wheels"]:
         bpy.data.objects.remove(ob)
     G["Wheels"] = []
     # flames
     LIFT = 3.9
     C.lift(G, LIFT)
+    import rcp_interior as I
+    I.car(p, G, G["Body"][0], "monster", dz=LIFT, key="MonsterTruck")
     steel, blue = M.mat("Frame", "#2a2c31", rough=0.4, metal=0.8), M.mat("Shock", "#1e62d0", rough=0.3, metal=0.6)
     ws = s["wheels"]
     for i, w in enumerate(ws):
@@ -300,10 +302,14 @@ def monster():
     G["Trim"].append(C.box("blower", (1.0, 1.4, 0.7), (0, 0.9, LIFT + 1.25), M.ALLOY(), bev=0.1))
     G["Trim"].append(C.box("transmission", (0.9, 1.8, 0.8), (0, -1.4, ez - 0.1), blk, bev=0.12))
     # cage inside the cab, visible through the open windows
-    for y in (1.6, 0.0):
-        G["Trim"].append(C.tube("cabhoop", [(-2.9, y, LIFT + 1.6), (-2.5, y, LIFT + 5.3), (2.5, y, LIFT + 5.3), (2.9, y, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
-    G["Trim"].append(C.tube("cabbar", [(-2.5, 1.6, LIFT + 5.3), (-2.5, 0.0, LIFT + 5.3)], 0.12, steel, segs=8))
-    G["Trim"].append(C.tube("cabbar", [(2.5, 1.6, LIFT + 5.3), (2.5, 0.0, LIFT + 5.3)], 0.12, steel, segs=8))
+    # front hoop up the A-pillars and along the header, main hoop behind the centre seat, so the
+    # driver's head and the view out of the windscreen stay clear
+    top = LIFT + 5.95
+    G["Trim"].append(C.tube("cabhoop", [(-2.9, 3.7, LIFT + 1.6), (-2.6, 2.1, top), (2.6, 2.1, top), (2.9, 3.7, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
+    G["Trim"].append(C.tube("cabhoop", [(-2.9, -1.3, LIFT + 1.6), (-2.6, -1.3, top), (2.6, -1.3, top), (2.9, -1.3, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
+    for sx in (-1, 1):
+        G["Trim"].append(C.tube("cabbar", [(sx * 2.6, 2.1, top), (sx * 2.6, -1.3, top)], 0.12, steel, segs=8))
+        G["Trim"].append(C.tube("cabdiag", [(sx * 2.9, -1.3, LIFT + 1.8), (sx * 2.6, 0.9, top - 0.1)], 0.1, steel, segs=8))
     for sx in (-1, 1):
         G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (sx * 1.2, 1.2, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
     G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (0, 1.2, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
@@ -336,7 +342,7 @@ def bake_colors(ob):
 def assemble(key, G):
     s = spec(key)
     made = []
-    for g in ("Body", "Glass", "Lights", "Trim"):
+    for g in ("Body", "Glass", "Lights", "Trim", "Interior"):
         objs = [o for o in G.get(g, []) if o is not None]
         # Roblox MeshParts are capped at 20k triangles: pack the pieces into bins below that
         bins, cur, n = [], [], 0
@@ -353,6 +359,13 @@ def assemble(key, G):
             ob = M.join(group, "%s_%s%s" % (key, g, "" if bi == 0 else str(bi + 1)))
             M.set_origin(ob, (0, 0, 0))
             made.append(ob)
+    if G.get("Steer"):
+        ob = M.join(G["Steer"], key + "_Steer")
+        ck = s.get("cockpit", {}).get("control", {})
+        piv = ck.get("pos")
+        if piv:
+            M.set_origin(ob, (piv[0], -piv[2], piv[1]))
+        made.append(ob)
     if G.get("Turret"):
         ob = M.join(G["Turret"], key + "_Turret")
         tp = s["turretPivot"]

@@ -19,6 +19,7 @@ local Replay = require(script.Parent.ReplayController)
 local Feed = require(script.Parent.HitNotificationController)
 local Inspect = require(script.Parent.DummyInspectionController)
 local UI = require(script.Parent.UIController)
+local FirstPerson = require(script.Parent.FirstPersonController)
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "RagdollCrashPhysics"
@@ -35,6 +36,7 @@ end
 Audio.init()
 Camera.init()
 VehicleInput.init()
+FirstPerson.init()
 Visuals.init()
 Effects.init()
 Replay.init()

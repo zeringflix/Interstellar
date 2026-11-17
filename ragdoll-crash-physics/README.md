@@ -94,6 +94,45 @@ The bus and dump truck use the same sharp sections; the armoured truck is flat, 
 
 To use them in the game: in Studio open **File > Import 3D**, import `blender/out/<Vehicle>.glb` into `ReplicatedStorage.VehicleMeshes` as a Model named exactly `<Vehicle>` (keep the object names). Each object is under 20,000 triangles and carries baked vertex colours. `shared/VehicleMeshInfo.luau` (generated) tells the game where each mesh sits, so nothing has to be positioned by hand. Until a vehicle is imported the game shows its part-built version, which is also the collision body.
 
+## First-person view and interiors
+
+While driving, press **FIRST PERSON** on the driving panel, **V** on a keyboard or **R3** on a gamepad to see the drive from your own avatar's eyes. Press it again for the normal camera. The choice sticks for every vehicle you get into. How it works:
+- **Looking around:** hold the right mouse button and move, drag on the right side of a touch screen, or use the right stick. The view drifts back to straight ahead when you let go.
+- **Your avatar:** you see your own body, and on R15 avatars both hands hold the wheel, yoke, handlebars or levers and follow the wheel as it turns. Your head and hats are hidden so they never block the view.
+- **Glass:** for the driver only, glass becomes about 89% clear so the windscreen and windows are easy to see through. Other players still see tinted glass.
+- **Head height:** Roblox avatars sit about 2.75 studs from seat to eye, much taller than a real person in the same seat. Each avatar is fitted locally so its head lands at the vehicle's eye point.
+- **Head movement:** the head sways slightly with braking, acceleration and bumps.
+- **Switching back:** leaving the seat, a replay or another camera mode returns you to the normal camera.
+
+Code: `roblox/src/client/FirstPersonController.luau` and `roblox/src/shared/Cockpit.luau`. Every vehicle's eye point and controls are in `blender/vehicles_spec.py` (`COCKPITS`). The interiors (`blender/rcp_interior.py`) are built around them: the seat sits under the eye, the controls are within an avatar's reach (checked by `builders_spec`), and dashboards stay below the line of sight through the windscreen. `blender/fp_render.py` renders the driver's view of each vehicle, with glass faded and back faces hidden as in Roblox, into `docs/first_person.jpg`.
+
+Roblox draws a mesh from one side only, so every cab has an inward-facing lining copied from its own body: headliner, pillar trim and door cards. Without it the roof and doors would vanish from inside. The armoured truck's windows were only laid on the armour, so real openings are now cut through it. The steam locomotive's cab was a solid block and is now a hollow cab.
+
+Interior research, vehicle by vehicle:
+
+| Vehicle | What was modelled, and why |
+|---|---|
+| Sedan, police car | Midsize sedan (Camry / Accord) cabin: padded dash, instrument cluster under a hood read through the top of the wheel, centre touchscreen (8 to 12.3 in on the Camry), 3-spoke wheel, console with selector, front buckets, rear bench, door cards with armrests and pulls, rear-view mirror, visors. The police car adds a laptop on a pedestal mount by the console, a radio and siren head, and a prisoner partition with plexi and bars behind the front seats, as fitted to Charger Pursuit and Police Interceptor cars. |
+| Muscle car | 1969 Camaro / Mustang style: big round speedo and tach, three-gauge console pod, chrome radio, floor shifter, high-back buckets, rear bench, thin wood-rim 2-spoke wheel. |
+| Sports car | Mid-engined supercar (McLaren, Porsche GT4 RS, MC20 references): carbon dash and tunnel, digital cluster, carbon-shell racing buckets with harness slots, flat-bottom wheel. |
+| Pickup | Regular-cab full-size pickup: bench seat (40/20/40 style), column shifter, 4-spoke wheel, big gauges. |
+| Monster truck | Driver centred in the body. Custom containment seat, 5-point harness, small wheel, switch panel and red kill switch (rules call for driver-reachable cut-offs), three-gauge pod. The roll cage was moved off the driver's head and out of the windscreen, with the front hoop up the A-pillars and the main hoop behind the seat. |
+| City bus | Raised driver's platform with an air-ride seat, near-horizontal large wheel, wraparound dash with gauges and switch pods, door buttons, fare box, driver barrier, destination-sign control, sun blind. |
+| Dump truck | Heavy conventional cab: air-ride seats, two rows of round gauges, yellow (parking) and red (trailer) air-brake knobs, tall gear lever, engine doghouse between the seats, CB radio. |
+| Armoured truck | MRAP style: steel dash with switch panels, display screen, radio rack between the seats, grab handles, harness seats. Thick windscreen panes and vision blocks in bolted frames are cut through the armour. |
+| Tank | Driven head-out of the open driver's hatch, as tank drivers drive outside combat. Hatch ring with the lid swung back, three periscopes ahead of the hatch, T-bar handlebars below (the M1 uses handlebars with twist grips). |
+| Small plane | Four-seat high-wing light aircraft (Cessna 172 layout): six-pack in front of the left seat (airspeed, attitude, altimeter / turn, heading, VSI), engine gauges to the right, GPS and radio stack, glare shield and compass, dual yokes, black throttle and red mixture, rudder pedals. The pilot sits in the left seat. |
+| Cargo plane | C-130 style flight deck in the nose, with the captain in the left seat. Glass panel of six displays, glare shield with autopilot row, centre pedestal with four power levers, overhead panel, dual yokes, rudder pedals, flight-engineer seat, bulkhead behind. |
+| Helicopter | Pilot in the right seat (as in the Bell 206), cyclic between the knees, collective to the left of each seat, anti-torque pedals, T-shaped console under the bubble. |
+| Steam locomotive | The firebox's rear sheet is the cab front (the backhead). It carries the firebox door, steam pressure gauge, two water gauge glasses and injector valves. The engineer sits on a seat box on the right (US practice) with the regulator and brake valve in reach and the Johnson-bar reverser at his side, looking out of a front window beside the boiler. The fireman's seat box is on the left. |
+| Bulldozer | Cat D6-style ROPS cab, made taller so a seated avatar fits. Air-suspension seat with armrest consoles, left joystick for steering and direction, right joystick for the blade, touchscreen on the front post, decelerator pedal. |
+| Go-kart | Low seat, small wheel brought back within an avatar's reach (kart guides: elbows bent, forearms parallel to the thighs). |
+| Rocket sled | After Sonic Wind No. 1: an open jet-style seat on top of the sled behind a short fairing and windscreen, with harness and hand grips. Its original enclosed canopy was far too small for an avatar. |
+
+Sources: [KBB Accord vs Camry](https://www.kbb.com/comparison/honda-accord-vs-toyota-camry), [CarExpert Camry interior](https://www.carexpert.com.au/toyota/camry/interior), [Gamber-Johnson Charger console](https://www.policemag.com/products/gamber-johnson-mounting-package-for-dodge-charger), [Troy partitions](https://danasafetysupply.com/police-suv-truck-cages-partitions-prisoner-transport/?limit=100), [Revology classic Mustang interior](https://revologycars.com/classic-mustang-interior-features/), [Porsche GT4 RS interior](https://grandavehousing.calpoly.edu/blog/porsche-718-cayman-gt4-rs-a-deep-dive-inside-1764803711), [Monster truck safety](https://www.pressreader.com/uk/how-it-works/20171130/281595240836844), [Mack Granite interior](https://www.forconstructionpros.com/equipment/trucks/heavy-trucks-class-7-8/product/20992834/mack-trucks-inc-mack-granite-driverfocused-interior), [MaxxPro driver station](https://afvdatabase.com/usa/pics/m1224maxxpro/m1224maxxpro.html), [M1 Abrams inside](https://www.slashgear.com/1906483/m1-abrams-inside-view/), [Cessna 172 cockpit](https://www.pilotmall.com/blogs/news/breaking-down-everything-in-the-cessna-172-cockpit), [C-130 crew stations](https://www.aviationtoday.com/2000/07/01/the-modernized-herc/), [FAA Helicopter Flying Handbook ch. 3](https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/helicopter_flying_handbook/hfh_ch03.pdf), [Steam locomotive components](https://en.wikipedia.org/wiki/Steam_locomotive_components), [Cat D6 cab](https://www.cat.com/en_US/products/new/equipment/dozers/medium-dozers/15969751.html), [Kart seating position](https://www.kartsportnews.com/content2013/prod_tillett-seat-selection.html), [Sonic Wind No. 1](https://www.si.edu/object/rocket-sled-sonic-wind-i%3Anasm_A19680015000), [Roblox IKControl](https://create.roblox.com/docs/reference/engine/classes/IKControl).
+
+![first person](docs/first_person.jpg)
+
 ## Audio and UI art
 
 Every sound is a Creator Store asset found through the Roblox audio search; names, creators and lengths are listed beside each ID in `roblox/src/shared/AudioIds.luau`.
@@ -106,11 +145,11 @@ Roblox Studio cannot run in the environment this was built in, so **nothing has 
 
 | Suite (`lune run tests/<name>.luau`) | Checks | What it proves |
 |---|---|---|
-| `syntax_check` | 30 files | Every script compiles |
+| `syntax_check` | 32 files | Every script compiles |
 | `damage_spec` | 86 | Damage curve, regions, statuses, blood, revive |
-| `builders_spec` | 922 | All 17 vehicles and 5 dummy types build against the Roblox API database |
+| `builders_spec` | 1029 | All 17 vehicles and 5 dummy types build against the Roblox API database; every cockpit's eye sits over its seat and both hand grips are within an avatar's reach; an imported steering wheel gets its turning joint |
 | `map_spec` | 210 | Map builds; every spawn and preset dummy stands on something solid |
 | `place_spec` | 12 | The finished place file has every script in the right container, the baked map, and the server reuses it |
-| `integration_spec` | 135 | The real server and client scripts run end to end on a mock engine: boot, a 56 mph crash, one hit per dummy, crash report, explosion, revive, resets without leaks, presets, limits, hostile requests, events, body and map switching, the whole UI with every button pressed, crash points unlocking vehicles in order, locked spawns refused, Robux pass purchase and ownership, saving |
+| `integration_spec` | 150 | The real server and client scripts run end to end on a mock engine: boot, a 56 mph crash, one hit per dummy, crash report, explosion, revive, resets without leaks, presets, limits, hostile requests, events, body and map switching, the whole UI with every button pressed, crash points unlocking vehicles in order, locked spawns refused, Robux pass purchase and ownership, saving, the first-person view (camera at the eye point, seat fit, head hidden, clear glass, both hands on the controls, clean exit) |
 
 Not verified, and needing a pass in Studio: vehicle handling feel and stability, ragdoll joint limits on the Robloxian rig, the `FaceControls` expressions, the look of the particle effects, hinge axis directions (wheels, propellers, turret), the orientation and colours of the imported meshes, and frame rate. The map is built for speed (streaming on, shadows off for flat and small parts, no touch events, about 730 static parts and 175 loose props, capped dummies) but the 100 fps target has not been measured.

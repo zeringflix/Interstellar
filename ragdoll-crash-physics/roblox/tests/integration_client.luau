@@ -136,9 +136,83 @@ local hud = find("DriveHud")
 check("drive HUD appears with key binds while driving", hud.Visible == true)
 local drive = car.PrimaryPart:FindFirstChild("Drive")
 check("throttle produces a forward drive force", drive.Force.Magnitude > 0, drive.Force)
+check("drive HUD has the first-person toggle", hud:FindFirstChild("ViewToggle", true) ~= nil)
+
+-- first-person view: an R15 avatar sitting too tall for the cab, with a hat on
+do
+	local FP = world.require(world.client.FirstPersonController)
+	local Specs = world.require(world.replicated.Shared.VehicleSpecs)
+	local char = player.Character
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	hum.RigType = roblox.Enum.HumanoidRigType.R15
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	hrp.CFrame = seat.CFrame * roblox.CFrame.new(0, 1.6, 0)
+	local function part(name, size, offset)
+		local p = roblox.Instance.new("Part")
+		p.Name, p.Size, p.CFrame, p.Parent = name, size, hrp.CFrame * offset, char
+		return p
+	end
+	local head = part("Head", roblox.Vector3.new(2, 1.2, 1.2), roblox.CFrame.new(0, 2.2, 0))
+	part("UpperTorso", roblox.Vector3.new(2, 1.6, 1), roblox.CFrame.new(0, 0.9, 0))
+	for _, side in { "Right", "Left" } do
+		local sx = if side == "Right" then 1.5 else -1.5
+		part(side .. "UpperArm", roblox.Vector3.new(1, 1.2, 1), roblox.CFrame.new(sx, 0.9, 0))
+		part(side .. "Hand", roblox.Vector3.new(1, 0.3, 1), roblox.CFrame.new(sx, -0.2, 0))
+	end
+	local face = roblox.Instance.new("Decal")
+	face.Name, face.Parent = "face", head
+	local hat = roblox.Instance.new("Accessory")
+	local handle = roblox.Instance.new("Part")
+	handle.Name, handle.Parent = "Handle", hat
+	local aw = roblox.Instance.new("Weld")
+	aw.Part0, aw.Part1, aw.Parent = handle, head, handle
+	hat.Parent = char
+	local weld = roblox.Instance.new("Weld")
+	weld.Name, weld.Part0, weld.Part1, weld.C0, weld.Parent = "SeatWeld", seat, hrp, roblox.CFrame.new(0, 0.3, 0), seat
+	hum.SeatPart = seat
+	seat.Occupant = hum
+	local key = car:GetAttribute("VehicleKey")
+	local eye = Specs.Vehicles[key].cockpit.eye
+	FP.setEnabled(true)
+	frames(30)
+	local cam = world.camera
+	check("first person: camera taken over while driving", FP.active and cam.CameraType == roblox.Enum.CameraType.Scriptable)
+	local want = car:GetPivot() * roblox.Vector3.new(eye[1], eye[2], eye[3])
+	check("first person: camera sits at the cockpit eye point", (cam.CFrame.Position - want).Magnitude < 0.3, (cam.CFrame.Position - want).Magnitude)
+	check("first person: looks out of the front of the vehicle", cam.CFrame.LookVector:Dot(car:GetPivot().LookVector) > 0.9)
+	check("first person: avatar fitted so the head is at eye height", math.abs(weld.C0.Position.Y - 0.3) > 0.05, weld.C0)
+	check("first person: head, face and hat hidden", head.LocalTransparencyModifier == 1 and handle.LocalTransparencyModifier == 1)
+	check("first person: arms stay visible", char.RightUpperArm.LocalTransparencyModifier == 0 and char.LeftHand.LocalTransparencyModifier == 0)
+	local glassClear, glassN = true, 0
+	for _, d in car:GetDescendants() do
+		if d:IsA("BasePart") and d.Material == roblox.Enum.Material.Glass then
+			glassN += 1
+			glassClear = glassClear and d.LocalTransparencyModifier >= 0.75
+		end
+	end
+	check("first person: windscreen and windows made clear (" .. glassN .. " panes)", glassN > 0 and glassClear)
+	local iks = 0
+	for _, c in hum:GetChildren() do
+		if c:IsA("IKControl") and c.Target and c.Target.Name:find("RCP_Grip") then
+			iks += 1
+		end
+	end
+	check("first person: both hands on the controls (IKControl)", iks == 2, iks)
+	local grips = car:FindFirstChild("RCP_GripR", true)
+	check("vehicle carries hand grips for the first-person view", grips ~= nil and car:FindFirstChild("RCP_GripL", true) ~= nil)
+	FP.toggle()
+	frames(2)
+	check("first person off: normal camera back", not FP.active and cam.CameraType == roblox.Enum.CameraType.Custom)
+	check("first person off: avatar back in the seat as it was", math.abs(weld.C0.Position.Y - 0.3) < 1e-4)
+	check("first person off: head visible again, glass tinted again", head.LocalTransparencyModifier == 0)
+	FP.toggle()
+	frames(30)
+	check("first person comes back with the toggle", FP.active)
+end
 seat.Occupant = roblox.Instance.new("Humanoid") -- someone else: the player is no longer the driver
 frames(3)
 check("drive HUD hides after leaving the vehicle", hud.Visible == false)
+check("first person ends when the player leaves the seat", not world.require(world.client.FirstPersonController).active and world.camera.CameraType == roblox.Enum.CameraType.Custom)
 
 -- press every button in the UI (twice, so toggles go both ways)
 local pressed = 0

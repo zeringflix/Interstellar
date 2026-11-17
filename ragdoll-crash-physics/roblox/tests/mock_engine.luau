@@ -292,7 +292,9 @@ function Mock.world()
 				return roblox.Enum.UserInputType.Keyboard
 			end, GamepadEnabled = false, GetMouseLocation = function()
 				return roblox.Vector2.new(640, 360)
-			end },
+			end, GetGamepadState = function()
+				return {}
+			end, MouseBehavior = roblox.Enum.MouseBehavior.Default },
 		GuiService = { GetGuiInset = function()
 			return roblox.Vector2.new(0, 36)
 		end, Select = function() end },

@@ -88,7 +88,11 @@ def register(builder, spec, car_dims):
             G["Trim"].append(box("grillbase", (3.6, 4.4, 0.08), (gx, -7.6, 3.98), blk, bev=0.02))
             for k in range(12):
                 G["Trim"].append(box("slat", (3.5, 0.14, 0.12), (gx, -9.6 + k * 0.36, 4.05), dark, bev=0.02, rot=(math.radians(25), 0, 0), segs=1))
-        G["Trim"].append(cyl("drvhatch", 1.0, 0.14, (-2.2, 5.0, 4.0), dark, "Z", segs=24))
+        # driver's hatch: open, the driver drives head-out (see rcp_interior.tank_driver)
+        from rcp_trucks import cut_rect
+        cut_rect(hull, "U", (-3.0, 4.2, -1.4, 5.8))
+        import rcp_interior as I
+        I.tank_driver(spec("Tank"), G, (-2.2, 5.0), 3.95)
         G["Trim"].append(box("periscope", (0.7, 0.3, 0.26), (-2.2, 6.2, 4.05), blk, bev=0.05))
 
         def u_handle(x, y, z, w=0.6, h=0.2, along="X"):
