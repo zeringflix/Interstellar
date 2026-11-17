@@ -1,63 +1,113 @@
 {
  "Sedan": {
-  "Sedan_Body": 9312,
-  "Sedan_Glass": 640,
-  "Sedan_Lights": 4200,
-  "Sedan_Trim": 7636,
-  "Sedan_Wheel1": 4916,
-  "Sedan_Wheel2": 4916,
-  "Sedan_Wheel3": 4916,
-  "Sedan_Wheel4": 4916
+  "objects": {
+   "Sedan_Body": 9676,
+   "Sedan_Glass": 640,
+   "Sedan_Lights": 4200,
+   "Sedan_Trim": 14392,
+   "Sedan_Wheel1": 4916,
+   "Sedan_Wheel2": 4916,
+   "Sedan_Wheel3": 4916,
+   "Sedan_Wheel4": 4916
+  },
+  "tris": 48572,
+  "size": [
+   7.68,
+   15.81,
+   5.23
+  ]
  },
  "SportsCar": {
-  "SportsCar_Body": 9240,
-  "SportsCar_Glass": 640,
-  "SportsCar_Lights": 3172,
-  "SportsCar_Trim": 9238,
-  "SportsCar_Wheel1": 5216,
-  "SportsCar_Wheel2": 5216,
-  "SportsCar_Wheel3": 5216,
-  "SportsCar_Wheel4": 5216
+  "objects": {
+   "SportsCar_Body": 9604,
+   "SportsCar_Glass": 640,
+   "SportsCar_Lights": 3172,
+   "SportsCar_Trim": 13550,
+   "SportsCar_Wheel1": 5216,
+   "SportsCar_Wheel2": 5216,
+   "SportsCar_Wheel3": 5216,
+   "SportsCar_Wheel4": 5216
+  },
+  "tris": 47830,
+  "size": [
+   7.61,
+   16.41,
+   4.26
+  ]
  },
  "PoliceCar": {
-  "PoliceCar_Body": 12052,
-  "PoliceCar_Glass": 640,
-  "PoliceCar_Lights": 4684,
-  "PoliceCar_Trim": 12644,
-  "PoliceCar_Wheel1": 5716,
-  "PoliceCar_Wheel2": 5716,
-  "PoliceCar_Wheel3": 5716,
-  "PoliceCar_Wheel4": 5716
+  "objects": {
+   "PoliceCar_Body": 12416,
+   "PoliceCar_Glass": 640,
+   "PoliceCar_Lights": 4684,
+   "PoliceCar_Trim": 18482,
+   "PoliceCar_Trim2": 918,
+   "PoliceCar_Wheel1": 5716,
+   "PoliceCar_Wheel2": 5716,
+   "PoliceCar_Wheel3": 5716,
+   "PoliceCar_Wheel4": 5716
+  },
+  "tris": 60004,
+  "size": [
+   7.68,
+   16.59,
+   5.65
+  ]
  },
  "MuscleCar": {
-  "MuscleCar_Body": 10780,
-  "MuscleCar_Glass": 640,
-  "MuscleCar_Lights": 4008,
-  "MuscleCar_Trim": 8214,
-  "MuscleCar_Wheel1": 5588,
-  "MuscleCar_Wheel2": 5588,
-  "MuscleCar_Wheel3": 5588,
-  "MuscleCar_Wheel4": 5588
+  "objects": {
+   "MuscleCar_Body": 11144,
+   "MuscleCar_Glass": 640,
+   "MuscleCar_Lights": 4008,
+   "MuscleCar_Trim": 12810,
+   "MuscleCar_Wheel1": 5588,
+   "MuscleCar_Wheel2": 5588,
+   "MuscleCar_Wheel3": 5588,
+   "MuscleCar_Wheel4": 5588
+  },
+  "tris": 50954,
+  "size": [
+   8.01,
+   17.81,
+   5.03
+  ]
  },
  "PickupTruck": {
-  "PickupTruck_Body": 10104,
-  "PickupTruck_Glass": 512,
-  "PickupTruck_Lights": 2984,
-  "PickupTruck_Trim": 9648,
-  "PickupTruck_Wheel1": 9422,
-  "PickupTruck_Wheel2": 9422,
-  "PickupTruck_Wheel3": 9422,
-  "PickupTruck_Wheel4": 9422
+  "objects": {
+   "PickupTruck_Body": 10468,
+   "PickupTruck_Glass": 512,
+   "PickupTruck_Lights": 2984,
+   "PickupTruck_Trim": 14220,
+   "PickupTruck_Wheel1": 9422,
+   "PickupTruck_Wheel2": 9422,
+   "PickupTruck_Wheel3": 9422,
+   "PickupTruck_Wheel4": 9422
+  },
+  "tris": 65872,
+  "size": [
+   8.25,
+   19.67,
+   6.59
+  ]
  },
  "MonsterTruck": {
-  "MonsterTruck_Body": 10104,
-  "MonsterTruck_Glass": 512,
-  "MonsterTruck_Lights": 3308,
-  "MonsterTruck_Trim": 17932,
-  "MonsterTruck_Wheel1": 10104,
-  "MonsterTruck_Wheel2": 10104,
-  "MonsterTruck_Wheel3": 10104,
-  "MonsterTruck_Wheel4": 10104
+  "objects": {
+   "MonsterTruck_Body": 10468,
+   "MonsterTruck_Glass": 512,
+   "MonsterTruck_Lights": 3308,
+   "MonsterTruck_Trim": 18464,
+   "MonsterTruck_Trim2": 4040,
+   "MonsterTruck_Wheel1": 10104,
+   "MonsterTruck_Wheel2": 10104,
+   "MonsterTruck_Wheel3": 10104,
+   "MonsterTruck_Wheel4": 10104
+  },
+  "tris": 77208,
+  "size": [
+   14.5,
+   19.67,
+   11.3
+  ]
  },
  "CityBus": {
   "CityBus_Body": 16422,
@@ -92,25 +142,41 @@
   "Tank_Turret": 5596
  },
  "ArmoredTruck": {
-  "ArmoredTruck_Body": 1934,
-  "ArmoredTruck_Glass": 2768,
-  "ArmoredTruck_Lights": 540,
-  "ArmoredTruck_Trim": 18106,
-  "ArmoredTruck_Trim2": 14480,
-  "ArmoredTruck_Wheel1": 9418,
-  "ArmoredTruck_Wheel2": 9418,
-  "ArmoredTruck_Wheel3": 9418,
-  "ArmoredTruck_Wheel4": 9418
+  "objects": {
+   "ArmoredTruck_Body": 1934,
+   "ArmoredTruck_Glass": 2768,
+   "ArmoredTruck_Lights": 540,
+   "ArmoredTruck_Trim": 18106,
+   "ArmoredTruck_Trim2": 14048,
+   "ArmoredTruck_Wheel1": 9418,
+   "ArmoredTruck_Wheel2": 9418,
+   "ArmoredTruck_Wheel3": 9418,
+   "ArmoredTruck_Wheel4": 9418
+  },
+  "tris": 75068,
+  "size": [
+   11.27,
+   22.83,
+   12.61
+  ]
  },
  "SmallPlane": {
-  "SmallPlane_Body": 12592,
-  "SmallPlane_Glass": 832,
-  "SmallPlane_Lights": 464,
-  "SmallPlane_Spin1": 976,
-  "SmallPlane_Trim": 5942,
-  "SmallPlane_Wheel1": 4408,
-  "SmallPlane_Wheel2": 4408,
-  "SmallPlane_Wheel3": 4408
+  "objects": {
+   "SmallPlane_Body": 12592,
+   "SmallPlane_Glass": 832,
+   "SmallPlane_Lights": 464,
+   "SmallPlane_Trim": 7914,
+   "SmallPlane_Spin1": 976,
+   "SmallPlane_Wheel1": 4408,
+   "SmallPlane_Wheel2": 4408,
+   "SmallPlane_Wheel3": 4408
+  },
+  "tris": 36002,
+  "size": [
+   34.35,
+   30.65,
+   10.27
+  ]
  },
  "CargoPlane": {
   "CargoPlane_Body": 11144,
