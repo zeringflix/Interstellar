@@ -400,16 +400,21 @@ class Surface:
         return self.hit(o, d)
 
 
-def cut_arch(ob, y0, z0, radius, min_x):
-    """Open a round wheel arch in a body side without booleans: vertices inside the arch circle are
-    pushed radially onto it (clean round lip), then the faces left inside are removed."""
+def arch_dist(dy, dz, power):
+    return (abs(dy) ** power + abs(dz) ** power) ** (1.0 / power)
+
+
+def cut_arch(ob, y0, z0, radius, min_x, power=2.0):
+    """Open a wheel arch in a body side without booleans: vertices inside the arch are pushed onto
+    its outline (clean lip), then the faces left inside are removed. power 2 = round (cars),
+    ~3.2 = the squared-off flat-topped arch of a truck."""
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     for v in bm.verts:
         if abs(v.co.x) < min_x:
             continue
         dy, dz = v.co.y - y0, v.co.z - z0
-        d = math.hypot(dy, dz)
+        d = arch_dist(dy, dz, power)
         if d < radius:
             if d < 1e-4:
                 dy, dz, d = 0.0, 1.0, 1.0
@@ -417,11 +422,33 @@ def cut_arch(ob, y0, z0, radius, min_x):
     dead = []
     for f in bm.faces:
         c = f.calc_center_median()
-        if abs(c.x) >= min_x and math.hypot(c.y - y0, c.z - z0) < radius * 1.004:
+        if abs(c.x) >= min_x and arch_dist(c.y - y0, c.z - z0, power) < radius * 1.004:
             dead.append(f)
     bmesh.ops.delete(bm, geom=dead, context="FACES")
     bm.to_mesh(ob.data)
     bm.free()
+
+
+def crease_lengthwise(ob, rings, points, caps=True, value=0.92):
+    """Crease the body's lengthwise edges that run through the given ring points (and the outline of
+    the front / rear caps) so a subdivided body keeps crisp, truck-like edges."""
+    key = lambda co: (round(co[0], 4), round(co[1], 4), round(co[2], 4))
+    index = {}
+    for ri, ring in enumerate(rings):
+        for j, pt in enumerate(ring):
+            index.setdefault(key(pt), (ri, j))
+    me = ob.data
+    attr = me.attributes.get("crease_edge") or me.attributes.new("crease_edge", "FLOAT", "EDGE")
+    last = len(rings) - 1
+    for e in me.edges:
+        a = index.get(key(me.vertices[e.vertices[0]].co))
+        b = index.get(key(me.vertices[e.vertices[1]].co))
+        if not a or not b:
+            continue
+        if a[1] == b[1] and a[0] != b[0] and a[1] in points:
+            attr.data[e.index].value = value
+        elif caps and a[0] == b[0] and a[0] in (0, last):
+            attr.data[e.index].value = value
 
 
 # ---- wheels ------------------------------------------------------------------------
@@ -537,31 +564,52 @@ def wheel(name, r, w, style="alloy5", side=1, color=None, caliper="#b3261e", rim
 
 
 # ---- body sections -------------------------------------------------------------------
-def section(y, w, zf, zb, zd, wd, crown=0.06, flare=0.0, tuck=0.82):
-    """One car-body cross-section ring at station y.
+def section(y, w, zf, zb, zd, wd, crown=0.06, flare=0.0, tuck=0.82, sharp=False):
+    """One body cross-section ring at station y.
     w half-width, zf floor, zb beltline (shoulder), zd deck (hood / roof / boot height at this station),
-    wd half-width of the deck, crown = roof / hood camber. Returns 20 points (closed ring)."""
+    wd half-width of the deck, crown = roof / hood camber. Returns 22 points (closed ring).
+    sharp=True gives the truck section: flat vertical sides, a crisp shoulder, near-upright glass
+    and a flat roof with a tight corner (creased later so subdivision keeps the edges sharp)."""
     side_h = zb - zf
-    half = [
-        (0.0, zf),
-        (w * tuck, zf),
-        (w * 0.975, zf + side_h * 0.14),
-        (w * (1.0 + flare), zf + side_h * 0.42),
-        (w * (1.0 + flare * 0.6), zf + side_h * 0.8),
-        (w * 0.965, zb),
-        (w * 0.93, zb + (zd - zb) * 0.06 + 0.01),
-        (w * 0.93 + (wd - w * 0.93) * 0.55, zb + (zd - zb) * 0.62),
-        (wd, zd - (zd - zb) * 0.05),
-        (wd * 0.55, zd + crown * 0.8),
-        (0.0, zd + crown),
-    ]
+    if sharp:
+        half = [
+            (0.0, zf),
+            (w * 0.97, zf),
+            (w, zf + side_h * 0.05),
+            (w, zf + side_h * 0.42),
+            (w, zf + side_h * 0.8),
+            (w, zb),
+            (w * 0.985, zb + (zd - zb) * 0.04 + 0.01),
+            (w * 0.985 + (wd - w * 0.985) * 0.5, zb + (zd - zb) * 0.55),
+            (wd, zd - (zd - zb) * 0.02),
+            (wd * 0.93, zd + crown * 0.3),
+            (wd * 0.55, zd + crown * 0.8),
+            (0.0, zd + crown),
+        ]
+    else:
+        half = [
+            (0.0, zf),
+            (w * tuck, zf),
+            (w * 0.975, zf + side_h * 0.14),
+            (w * (1.0 + flare), zf + side_h * 0.42),
+            (w * (1.0 + flare * 0.6), zf + side_h * 0.8),
+            (w * 0.965, zb),
+            (w * 0.93, zb + (zd - zb) * 0.06 + 0.01),
+            (w * 0.93 + (wd - w * 0.93) * 0.55, zb + (zd - zb) * 0.62),
+            (wd, zd - (zd - zb) * 0.05),
+            (wd * 0.88, zd - (zd - zb) * 0.01 + crown * 0.25),  # slim pillar / roof-rail strip
+            (wd * 0.55, zd + crown * 0.8),
+            (0.0, zd + crown),
+        ]
     ring = [(x, y, z) for x, z in half] + [(-x, y, z) for x, z in reversed(half[1:-1])]
     return ring
 
 
-# point-pair indices of the 20-gon: side window strips and roof strips (both sides)
-SIDE_GLASS = {6, 7, 12, 13}   # between points 6-7, 7-8 and mirrored
-TOP_STRIPS = {8, 9, 10, 11}   # deck / roof / windscreen strips
+# strip indices of the 22-point ring (strip j joins point j and j+1), both sides:
+SIDE_GLASS = {6, 7, 14, 15}     # side window: belt up to the roof rail
+PILLAR_STRIPS = {8, 13}         # slim strip between side glass and windscreen / roof = A-, C-pillar, roof rail
+TOP_STRIPS = {9, 10, 11, 12}    # windscreen / rear screen / roof / bonnet
+CORNER_POINTS = {1, 5, 8, 9, 13, 14, 17, 21}  # ring points whose lengthwise edges get creased on sharp bodies
 
 
 # ---- more generators ---------------------------------------------------------------------

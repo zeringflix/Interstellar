@@ -18,7 +18,7 @@ def place_wheels(G, wheels, style, rim=None, rim_frac=0.6):
         G["Wheels"].append(ob)
 
 
-def shell_from(stations, materials, subdiv=2):
+def shell_from(stations, materials, subdiv=2, sharp=True):
     rings = [s[0] for s in stations]
     flags = [s[1] for s in stations]
 
@@ -30,6 +30,8 @@ def shell_from(stations, materials, subdiv=2):
             return 1
         return 0
     sh = loft("shell", rings, materials=materials, mat_fn=mat_fn)
+    if sharp:  # commercial vehicles: flat panels and crisp edges, not soft blobs
+        M.crease_lengthwise(sh, rings, M.CORNER_POINTS)
     M.subsurf(sh, subdiv)
     return sh
 
@@ -63,7 +65,7 @@ def register(builder, spec, car_dims):
         shell = shell_from(S, [white, M.GLASS()])
         ws = s["wheels"]
         for w in ws[::2]:
-            M.cut_arch(shell, -w["pos"][2], w["radius"] * 0.98, w["radius"] * 1.14, 2.6)
+            M.cut_arch(shell, -w["pos"][2], w["radius"] * 0.98, w["radius"] * 1.14, 2.6, 2.8)
         surf = M.Surface(shell)
         body, glass = C.split_glass(shell)
         G["Body"].append(body)
@@ -170,7 +172,7 @@ def register(builder, spec, car_dims):
         G["Trim"].append(tube("swheel", ring, 0.06, M.PLASTIC(), segs=8, closed=True))
         for w in ws[::2]:
             for sx in (-1, 1):
-                cup = lathe("liner", [(0, 0), (w["radius"] * 1.13, 0), (w["radius"] * 1.13, 2.4)], M.matte("#0c0c0d", 0.95), segs=28, axis="X", cap=False)
+                cup = C.arch_liner(w["radius"] * 1.13, 2.4, 2.8)
                 cup.scale.x = sx
                 M.place(cup, (sx * 2.0, -w["pos"][2], w["radius"] * 0.98))
                 G["Trim"].append(cup)
@@ -186,7 +188,7 @@ def register(builder, spec, car_dims):
         # ---- cab (conventional, short bonnet)
         hw, c, belt, roof, hood = 4.4, 3.2, 6.6, 9.0, 6.5
         S = []
-        add = lambda y, w, zf, zb, zd, wd, flag="", cr=0.1: S.append((section(y, hw * w, zf, zb, zd, hw * wd, cr, 0, 0.92), flag))
+        add = lambda y, w, zf, zb, zd, wd, flag="", cr=0.1: S.append((section(y, hw * w, zf, zb, zd, hw * wd, cr, 0, 0.92, sharp=True), flag))
         add(6.4, 0.9, c + 0.3, belt, roof - 0.7, 0.72, cr=0.05)
         add(6.6, 1.0, c, belt, roof - 0.15, 0.86)
         add(7.0, 1.0, c, belt, roof, 0.88, "glass")

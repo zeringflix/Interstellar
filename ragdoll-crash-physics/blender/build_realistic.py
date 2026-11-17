@@ -149,20 +149,23 @@ def muscle():
 
 def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
     s = spec(key)
+    # proportions of a regular-cab full-size pickup: ~1/3 hood, ~1/3 cab, bed behind; windscreen base
+    # sits just behind the front wheel, the door just clears the arch. Flat sides, crisp creases,
+    # squared-off arches (sharp=True, arch_power).
     p = car_dims("PickupTruck", L=18.6, W=7.6, color=color, clear=1.25, belt=4.15, roof=6.25, hood_front=3.8, hood_cowl=4.2,
-                 cowl=4.9, ws_top=3.3, roof_rear=0.7, deck=0.35, trunk=4.3, b_pillar=2.0, arch=1.13, roof_w=0.8, nose_w=0.94, tail_w=0.97,
-                 wheel_style=style, rim_color="#c9ccd1", doors=[3.4, 0.75], seat_rows=[2.3], quarter_glass=False, crown=0.05, flare=0.03,
+                 cowl=3.9, ws_top=2.0, roof_rear=-1.6, deck=-2.0, trunk=4.3, b_pillar=0.0, arch=1.13, roof_w=0.88, nose_w=0.97, tail_w=0.99,
+                 wheel_style=style, rim_color="#c9ccd1", doors=[3.4, -1.4], seat_rows=[0.4], crown=0.03, flare=0.0, sharp=True, arch_power=3.2,
                  headlight=(0.58, 0.92, 2.95, 3.5), grille=(0.52, 2.2, 3.55), grille_bars=4, exhausts=(2.6,), taillight=(0.86, 0.97, 2.9, 3.9),
                  plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25, single_window=True)
     p.update(over)
 
     def extras(p, surf, paint, G):
         body = G["Body"][0]
-        C.recess(body, -3.25, 3.25, -8.75, -0.25, 3.9, 2.55)   # the load bed
+        C.recess(body, -3.25, 3.25, -8.75, -2.35, 3.9, 2.55)   # the load bed
         for o in body.data.polygons:
             o.use_smooth = True
-        G["Trim"].append(C.box("bedliner", (6.4, 8.4, 0.06), (0, -4.5, 2.6), M.matte("#1b1c1e", 0.9), bev=0.01))
-        for y in (-8.0, -6.2, -4.4, -2.6, -0.8):
+        G["Trim"].append(C.box("bedliner", (6.4, 6.3, 0.06), (0, -5.55, 2.6), M.matte("#1b1c1e", 0.9), bev=0.01))
+        for y in (-8.0, -6.7, -5.4, -4.1, -2.8):
             G["Trim"].append(C.box("bedrib", (6.2, 0.18, 0.06), (0, y, 2.66), M.matte("#232427", 0.9), bev=0.02))
         for yb, zc in ((p["L"] / 2 + 0.12, 1.75), (-p["L"] / 2 - 0.12, 1.85)):   # chrome bumpers
             b = C.box("bumper", (7.5, 0.5, 0.75), (0, yb, zc), M.CHROME(), bev=0.16, segs=3)
@@ -171,7 +174,7 @@ def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
         G["Trim"].append(C.box("tghandle", (0.9, 0.06, 0.2), (0, -p["L"] / 2 - 0.03, 3.85), M.DARK(), bev=0.03))
         G["Trim"].append(C.cyl("hitch", 0.16, 0.5, (0, -p["L"] / 2 - 0.45, 1.5), M.STEEL(), "Y", segs=12))
         for sgn in (-1, 1):
-            G["Trim"].append(C.tube("step", [(sgn * 3.75, 4.3, 1.35), (sgn * 3.95, 3.9, 1.2), (sgn * 3.95, 1.2, 1.2), (sgn * 3.75, 0.8, 1.35)], 0.11, M.CHROME(), segs=10, smooth=4))
+            G["Trim"].append(C.tube("step", [(sgn * 3.75, 3.2, 1.35), (sgn * 3.95, 2.8, 1.2), (sgn * 3.95, -1.0, 1.2), (sgn * 3.75, -1.4, 1.35)], 0.11, M.CHROME(), segs=10, smooth=4))
             G["Trim"].append(C.box("flap", (1.2, 0.06, 1.0), (sgn * 3.1, p["axle_r"] - p["wheel_r"] * 1.25, 1.5), M.RUBBER(), bev=0.01))
     G = C.build_car(p, wheels, extras)
     return p, G
@@ -224,8 +227,8 @@ def monster():
                 G["Trim"].append(C.tube("link", [(sx * 2.6, y, zr + zz), (sx * 1.6, y * 0.12, LIFT + 0.9 + zz * 0.5)], 0.13, steel, segs=10))
     for sx in (-1, 1):  # ladder frame + roll cage
         G["Trim"].append(C.tube("rail", [(sx * 1.7, ys[0] * 0.95, LIFT + 0.9), (sx * 1.7, ys[1] * 0.95, LIFT + 0.9)], 0.22, steel, segs=10))
-        G["Trim"].append(C.tube("cage", [(sx * 3.0, -1.0, LIFT + 4.3), (sx * 3.0, -1.2, LIFT + 6.7), (sx * 3.0, -8.2, LIFT + 6.7), (sx * 3.0, -8.6, LIFT + 4.3)], 0.14, steel, segs=10, smooth=5))
-    for y in (-1.2, -8.2):
+        G["Trim"].append(C.tube("cage", [(sx * 3.0, -2.6, LIFT + 4.3), (sx * 3.0, -2.8, LIFT + 6.7), (sx * 3.0, -8.2, LIFT + 6.7), (sx * 3.0, -8.6, LIFT + 4.3)], 0.14, steel, segs=10, smooth=5))
+    for y in (-2.8, -8.2):
         G["Trim"].append(C.tube("cagex", [(-3.0, y, LIFT + 6.7), (3.0, y, LIFT + 6.7)], 0.14, steel, segs=10))
     for y in (ys[0] * 0.6, 0, ys[1] * 0.6):
         G["Trim"].append(C.tube("cross", [(-1.7, y, LIFT + 0.9), (1.7, y, LIFT + 0.9)], 0.18, steel, segs=10))
@@ -256,13 +259,13 @@ def monster():
     G["Trim"].append(C.box("blower", (1.0, 1.4, 0.7), (0, 0.9, LIFT + 1.25), M.ALLOY(), bev=0.1))
     G["Trim"].append(C.box("transmission", (0.9, 1.8, 0.8), (0, -1.4, ez - 0.1), blk, bev=0.12))
     # cage inside the cab, visible through the open windows
-    for y in (2.4, 0.9):
+    for y in (1.6, 0.0):
         G["Trim"].append(C.tube("cabhoop", [(-2.9, y, LIFT + 1.6), (-2.5, y, LIFT + 5.3), (2.5, y, LIFT + 5.3), (2.9, y, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
-    G["Trim"].append(C.tube("cabbar", [(-2.5, 2.4, LIFT + 5.3), (-2.5, 0.9, LIFT + 5.3)], 0.12, steel, segs=8))
-    G["Trim"].append(C.tube("cabbar", [(2.5, 2.4, LIFT + 5.3), (2.5, 0.9, LIFT + 5.3)], 0.12, steel, segs=8))
+    G["Trim"].append(C.tube("cabbar", [(-2.5, 1.6, LIFT + 5.3), (-2.5, 0.0, LIFT + 5.3)], 0.12, steel, segs=8))
+    G["Trim"].append(C.tube("cabbar", [(2.5, 1.6, LIFT + 5.3), (2.5, 0.0, LIFT + 5.3)], 0.12, steel, segs=8))
     for sx in (-1, 1):
-        G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (sx * 1.2, 2.9, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
-    G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (0, 2.9, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
+        G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (sx * 1.2, 1.2, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
+    G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (0, 1.2, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
     return G
 
 

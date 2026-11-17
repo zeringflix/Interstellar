@@ -33,7 +33,7 @@ def stations(p):
         if flare:   # axle stations: raise the wing over the wheel if the bonnet / boot is lower than the arch
             zb = max(zb, fender)
             zd = max(zd, zb + 0.04)
-        S.append((section(y, hw * w, zf, zb, zd, hw * wd, crown if cr is None else cr, flare), flag))
+        S.append((section(y, hw * w, zf, zb, zd, hw * wd, crown if cr is None else cr, flare, sharp=p.get("sharp", False)), flag))
 
     tb = min(belt, tz)  # beltline under the boot
     # --- tail
@@ -69,15 +69,19 @@ def body_shell(p, paint, extra_cut=None):
             return 1
         if f in ("ws", "rw") and j in M.TOP_STRIPS:
             return 1
-        if f in ("ws", "rw") and j in M.SIDE_GLASS and p.get("quarter_glass", False):
-            return 1 if j in (7, 12) else 0   # small quarter lights, leaving real A / C pillars
+        # the front door glass runs all the way forward into the corner under the A-pillar, so the
+        # window fills the whole top of the door (one pane; a slim A-pillar strip stays body colour)
+        if f == "ws" and j in M.SIDE_GLASS and p.get("glass_to_pillar", True):
+            return 1
         return 0
 
     shell = loft("shell", rings, materials=[paint, M.GLASS()], mat_fn=mat_fn)
+    if p.get("sharp"):  # trucks: crisp body edges that survive the subdivision
+        M.crease_lengthwise(shell, rings, M.CORNER_POINTS)
     M.subsurf(shell, p.get("subdiv", 2))
-    # wheel arches
+    # wheel arches (squared-off on trucks)
     for y in (p["axle_f"], p["axle_r"]):
-        M.cut_arch(shell, y, p["wheel_r"] * p.get("arch_z", 0.95), p["wheel_r"] * p.get("arch", 1.2), p["W"] * 0.3)
+        M.cut_arch(shell, y, p["wheel_r"] * p.get("arch_z", 0.95), p["wheel_r"] * p.get("arch", 1.2), p["W"] * 0.3, p.get("arch_power", 2.0))
     if extra_cut:
         extra_cut(shell)
     for poly in shell.data.polygons:
@@ -209,6 +213,22 @@ def window_trim(glass, material, radius=0.045):
         trims.append(tube("windowtrim", pts, radius, material, segs=6, closed=True))
     bm.free()
     return trims
+
+
+def arch_liner(radius, depth, power):
+    """Dark wheel-well cup matching the arch outline (round or squared), closed inboard."""
+    n = 40
+    def ring(x, r):
+        pts = []
+        for k in range(n):
+            a = M.TAU * k / n
+            c, s_ = math.cos(a), math.sin(a)
+            d = (abs(c) ** power + abs(s_) ** power) ** (1.0 / power)
+            pts.append((x, r * c / d, r * s_ / d))
+        return pts
+    ob = loft("liner", [ring(0.0, 0.001), ring(0.0, radius), ring(depth, radius)], M.matte("#0c0c0d", 0.95), cap=False)
+    # loft lays rings along x in Blender space; the caller mirrors / places it like the old lathe cup
+    return ob
 
 
 def mirror_pod(surf, p, paint, side):
@@ -393,7 +413,7 @@ def build_car(p, wheels, extras=None, extra_cut=None):
     ar = p["wheel_r"] * p.get("arch", 1.2)
     for y in (p["axle_f"], p["axle_r"]):
         for sx in (-1, 1):   # one dark wheel-well cup per corner: closed inboard, open towards the wheel
-            cup = lathe("liner", [(0, 0), (ar - 0.015, 0), (ar - 0.015, p["W"] * 0.32)], M.matte("#0c0c0d", 0.95), segs=32, axis="X", cap=False)
+            cup = arch_liner(ar - 0.015, p["W"] * 0.32, p.get("arch_power", 2.0))
             if sx < 0:
                 cup.scale.x = -1
             M.place(cup, (sx * p["W"] * 0.17, y, p["wheel_r"] * p.get("arch_z", 0.95)))
