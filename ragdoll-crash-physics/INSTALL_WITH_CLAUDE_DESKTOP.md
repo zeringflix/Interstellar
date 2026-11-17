@@ -18,8 +18,9 @@ Repo: `zeringflix/Interstellar`, branch `claude/ragdoll-crash-physics-research-j
 3. File > **Import 3D** > `AllVehicles.glb` (default options). Drag the imported model into `ReplicatedStorage.VehicleMeshes` so that it contains one child per vehicle (`Sedan`, `Tank`, ...). Each child's parts are named like `Sedan_Body`, `Sedan_Wheel1`.
    The models are textured: in the import window keep textures / materials enabled, and check that each mesh (e.g. `Sedan_Body`) has a `SurfaceAppearance` child after import. Glass and lamp meshes have none on purpose.
 4. Press Play. Expected: you spawn at the plaza, a yellow sports car is parked facing a row of grey dummies, and the VEHICLES / DUMMIES-style buttons are on the left. Drive into the dummies; a two-line damage bar appears at the bottom.
-5. File > Publish to Roblox; Game Settings > Max Players = 1.
-6. Optional: paste uploaded icon / Folk UI image ids into `StarterPlayerScripts.Client.UIAssets`.
+5. File > Publish to Roblox; Game Settings > Max Players = 1; Game Settings > Security > Enable Studio Access to API Services (progress saving).
+6. Robux vehicles: create three game passes (Monster Truck R$ 99, Tank R$ 149, Rocket Sled R$ 199) under Creator Dashboard > Monetization > Passes and paste the ids into `Config.Progression.Paid` (ReplicatedStorage > Shared > GameConfig). To try every vehicle while testing, set `StudioUnlockAll = true` there (Studio only).
+7. Optional: paste uploaded icon / Folk UI image ids into `StarterPlayerScripts.Client.UIAssets`.
 
 ## If something looks wrong
 - A vehicle looks blocky: its model was not imported under `VehicleMeshes`, or the part names changed.

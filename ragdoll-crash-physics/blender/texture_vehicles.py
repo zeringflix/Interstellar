@@ -703,9 +703,10 @@ def apply(vehicle, n):
         imgs["METAL"].pixels.foreach_get(arr)
         final_material(ob, imgs, float(arr[0::4].max()) > 0.08)
         print("  baked", ob.name, res, flush=True)
-    for img in bpy.data.images:
-        if img.filepath_raw:
-            img.filepath = bpy.path.relpath(img.filepath_raw, start=OUT)
+    # image paths stay absolute in this session; save_as_mainfile(relative_remap) stores them relative to the .blend
+    missing = [i.name for i in bpy.data.images if i.source == "FILE" and not os.path.exists(bpy.path.abspath(i.filepath))]
+    if missing:
+        raise RuntimeError("textures missing on disk: %s" % missing)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, vehicle + ".blend"), relative_remap=True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in every:

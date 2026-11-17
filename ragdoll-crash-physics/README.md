@@ -52,6 +52,24 @@ What was taken from the research: one-player servers, grey Robloxian-style dummi
 - **UI**: Shop / Vehicles / Sandbox tiles on the left, round Settings / Dummy / Controls buttons on top, packs and Revive / Reset on the right, key binds bottom right while driving (a slim strip under the top row on phones and tablets). Gamepad glyphs replace key caps when a controller is used.
 - **Replay**: the last 10 seconds can be watched at 0.25x-1x. It plays recorded transforms on local copies, so it cannot change the simulation.
 
+## Unlocks and Robux vehicles
+
+Vehicles are ranked from least to most cool. Players start with the **Sedan**; the next 13 unlock in order as their lifetime **crash points** grow (shown under the title, with the next unlock):
+
+| # | Vehicle | Crash points | | # | Vehicle | Crash points |
+|---|---|---|---|---|---|---|
+| 1 | Sedan | free | | 8 | Bulldozer | 34,000 |
+| 2 | Go-Kart | 1,500 | | 9 | Train | 43,000 |
+| 3 | City Bus | 4,000 | | 10 | Small Plane | 53,000 |
+| 4 | Pickup Truck | 8,000 | | 11 | Armored Truck | 64,000 |
+| 5 | Dump Truck | 13,000 | | 12 | Sports Car | 76,000 |
+| 6 | Police Car | 19,000 | | 13 | Helicopter | 90,000 |
+| 7 | Muscle Car | 26,000 | | 14 | Cargo Plane | 110,000 |
+
+The three coolest are Robux game passes: **Monster Truck (R$ 99), Tank (R$ 149), Rocket Sled (R$ 199)**. Points come only from crash reports that a vehicle started (events and chain reactions earn nothing), capped at 15,000 per crash. The server checks every spawn; locked cards show the points still needed, paid cards open the purchase prompt. Progress saves to a DataStore (`RCP_Progress_v1`) with `UpdateAsync` keeping the larger total, so a failed save can't lose points; if DataStores are unavailable the game keeps going with session-only progress and tells the player.
+
+To switch the paid vehicles on: Creator Dashboard > your experience > Monetization > Passes > create three passes, then paste their ids into `Config.Progression.Paid` in `ReplicatedStorage.Shared.GameConfig`; until then they show "SOON". The order, the point costs and the prices are all in that table. For testing in Studio: Game Settings > Security > **Enable Studio Access to API Services** (for saving), and `StudioUnlockAll = true` makes every vehicle usable in Studio only.
+
 ## Models
 
 `blender/build_realistic.py` builds every vehicle from code (`python3 build_realistic.py [Vehicle ...]`, needs the `bpy` module or Blender 4.2+). Bodies are lofted and subdivided surfaces with real glass, cut wheel arches and interiors; lamps, grilles, shut-lines and liveries are projected onto the surface; wheels have tyres with tread, rims, spokes and brakes; the tank and bulldozer have individual track links; aircraft use aerofoil sections and twisted blades.
