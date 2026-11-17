@@ -11,6 +11,7 @@ local DummyService = require(script.Parent.DummyService)
 local CrashReportService = {}
 CrashReportService.last = nil
 CrashReportService.history = {}
+CrashReportService.reportListeners = {} :: { (any) -> () }
 
 local remotes
 local current = nil
@@ -85,6 +86,10 @@ local function close()
 	table.insert(CrashReportService.history, report)
 	if #CrashReportService.history > 10 then
 		table.remove(CrashReportService.history, 1)
+	end
+	report.byVehicle = c.vehicle ~= nil -- only crashes a vehicle started earn crash points
+	for _, fn in CrashReportService.reportListeners do
+		fn(report)
 	end
 	remotes.Report:FireAllClients(report)
 end

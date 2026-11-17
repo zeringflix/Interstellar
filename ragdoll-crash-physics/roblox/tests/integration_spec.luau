@@ -55,7 +55,7 @@ local player, playerGui = Mock.player(world, 42)
 world.players.LocalPlayer = player
 world.players.PlayerAdded:Fire(player)
 local vehicles = ws.Vehicles
-check("starter sports car is parked on join", #vehicles:GetChildren() == 1 and vehicles:GetChildren()[1].Name == "SportsCar")
+check("starter sedan is parked on join", #vehicles:GetChildren() == 1 and vehicles:GetChildren()[1].Name == "Sedan")
 local car = vehicles:GetChildren()[1]
 local carRoot = car.PrimaryPart
 check("car parked at the Road spawn facing the dummies", math.abs(carRoot.CFrame.Position.X) < 0.5 and math.abs(carRoot.CFrame.Position.Z - 34) < 1.5 and carRoot.CFrame.LookVector.Z < -0.99, carRoot.CFrame.Position)
@@ -107,7 +107,7 @@ if r then
 	local s = Dummy.dummies[3].state
 	check("record: body region is a leg or torso for a low car body", r.region == "LEFT LEG" or r.region == "RIGHT LEG" or r.region == "TORSO", r.region)
 	check("record: speed ~56 mph", math.abs(r.mph - 56) <= 2, r.mph)
-	check("record: source is the vehicle", r.source == "Sports Car")
+	check("record: source is the vehicle", r.source == "Sedan")
 	check("record: damage equals health lost", r.damage == 100 - r.health and r.damage > 10, r.damage)
 	check("record: status matches server state", r.status == Dummy.dummies[3].model:GetAttribute("Status") or true)
 	check("dummy 3 is ragdolled with constraints live", s.ragdolled and Dummy.dummies[3].model:GetAttribute("Ragdoll") == true)
@@ -116,7 +116,7 @@ if r then
 	check("dummy was launched forward (-Z) by the hit", m.UpperTorso.AssemblyLinearVelocity.Z < -30, m.UpperTorso.AssemblyLinearVelocity)
 	check("launch speed is clamped", m.UpperTorso.AssemblyLinearVelocity.Magnitude <= Config.Impact.MAX_IMPULSE_SPEED * 1.3)
 	check("status label is not HEALTHY", m:GetAttribute("Status") ~= "HEALTHY", m:GetAttribute("Status"))
-	check("inspection data published", m:GetAttribute("LastSource") == "Sports Car" and m:GetAttribute("LastSpeedMph") == r.mph and m:GetAttribute("CondTorso") ~= nil)
+	check("inspection data published", m:GetAttribute("LastSource") == "Sedan" and m:GetAttribute("LastSpeedMph") == r.mph and m:GetAttribute("CondTorso") ~= nil)
 	check("face reacts to the hit", m:GetAttribute("Face") ~= "Normal", m:GetAttribute("Face"))
 end
 check("untouched dummy far away is still HEALTHY", Dummy.dummies[6].model:GetAttribute("Status") == "HEALTHY", Dummy.dummies[6].model:GetAttribute("Status"))
@@ -155,10 +155,63 @@ local reports = fired("Report")
 check("crash report sent once", #reports == 1, #reports)
 if reports[1] then
 	local rep = reports[1].args[1]
-	check("report: vehicle + speed", rep.vehicle == "Sports Car" and math.abs(rep.mph - 56) <= 2, rep)
+	check("report: vehicle + speed", rep.vehicle == "Sedan" and math.abs(rep.mph - 56) <= 2, rep)
 	check("report: hit count matches records", rep.hit >= hitCount, { rep.hit, hitCount })
 	check("report: score > 0 and consistent", rep.score > 0 and rep.down + rep.unconscious + rep.dead <= rep.hit, rep)
 end
+
+local fireSignal0 = remotes.Request.OnServerEvent
+-- PROGRESSION: points come from the real crash report, the ladder unlocks in order, paid vehicles need the pass
+local Progression = world.require(world.server.ProgressionService)
+local earned = player:GetAttribute("CrashPoints")
+check("the crash earned crash points", typeof(earned) == "number" and earned > 0, earned)
+check("only the starter is unlocked at first (or what the points allow)", player:GetAttribute("Unlocked") == "Sedan" or earned >= Config.Progression.Ladder[2][2], player:GetAttribute("Unlocked"))
+Mock.fired = {}
+Mock.clock += 1
+Mock.sync(true)
+fireSignal0:Fire(player, "SpawnVehicle", "Tank")
+check("locked paid vehicle is refused with a reason", VehicleService.current(player).Name ~= "Tank" and #fired("Notice") == 1 and string.find(fired("Notice")[1].args[2], "locked") ~= nil)
+Mock.clock += 1
+fireSignal0:Fire(player, "SpawnVehicle", "CargoPlane")
+check("locked ladder vehicle is refused", VehicleService.current(player).Name ~= "CargoPlane")
+local p0 = Progression.points(player)
+Progression.award(player, { byVehicle = false, score = 5000 })
+check("chain reactions / events earn nothing", Progression.points(player) == p0)
+Progression.award(player, { byVehicle = true, score = 999999 })
+check("one crash is capped", Progression.points(player) == p0 + Config.Progression.MAX_POINTS_PER_CRASH, Progression.points(player))
+for _ = 1, 8 do
+	Progression.award(player, { byVehicle = true, score = 15000 })
+end
+local list = string.split(player:GetAttribute("Unlocked"), ",")
+check("ladder unlocks in order (all 14 at 135k points)", #list == 14 and list[1] == "Sedan" and list[14] == "CargoPlane", player:GetAttribute("Unlocked"))
+check("paid vehicles stay locked without the pass", not Progression.canUse(player, "Tank") and not Progression.canUse(player, "RocketSled"))
+local unlockNotes = 0
+for _, f in fired("Notice") do
+	if string.find(f.args[2], "UNLOCKED") then
+		unlockNotes += 1
+	end
+end
+check("player told about each unlock", unlockNotes >= 12, unlockNotes)
+Config.Progression.Paid[2].passId = 111 -- Tank
+world.services.MarketplaceService.PromptGamePassPurchaseFinished:Fire(player, 111, false)
+check("cancelled purchase grants nothing", not Progression.canUse(player, "Tank"))
+world.services.MarketplaceService.PromptGamePassPurchaseFinished:Fire(player, 111, true)
+check("bought pass unlocks the Tank", Progression.canUse(player, "Tank") and string.find(player:GetAttribute("Unlocked"), "Tank") ~= nil)
+Progression.save(player)
+local saved = Mock.stores and Mock.stores[Config.Progression.DATASTORE] and Mock.stores[Config.Progression.DATASTORE]["u_42"]
+check("progress saved to the DataStore", saved and saved.points == Progression.points(player), saved)
+local before = Progression.points(player)
+Mock.ownedPasses = { [111] = true }
+Progression.load(player)
+check("rejoin restores points", Progression.points(player) == before, Progression.points(player))
+check("owned pass detected on join", Progression.canUse(player, "Tank"))
+Mock.datastoreDown = true
+Mock.fired = {}
+Progression.load(player)
+check("DataStore outage: session-only progress + a notice", player:GetAttribute("ProgressSaved") == false and #fired("Notice") == 1)
+Mock.datastoreDown = false
+Progression.load(player)
+check("back online: progress intact", Progression.points(player) == before)
 
 -- TEST E: the tank hurts more than the sedan at the same speed and stays in the heavy field
 local fireSignal = remotes.Request.OnServerEvent
@@ -167,6 +220,7 @@ local fire = { Fire = function(_, ...)
 	fireSignal:Fire(...)
 	Mock.sync(true)
 end }
+Mock.clock += 1
 fire:Fire(player, "SpawnVehicle", "Tank")
 Mock.clock += 1
 local tank = VehicleService.current(player)

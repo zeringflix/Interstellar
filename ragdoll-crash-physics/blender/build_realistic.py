@@ -63,7 +63,8 @@ def sports():
                  cowl=2.6, ws_top=0.2, roof_rear=-2.3, deck=-5.9, trunk=2.72, b_pillar=-1.0, arch=1.16, roof_w=0.68, nose_w=0.8,
                  tail_w=0.92, wheel_style="sport10", rim_color="#2a2c30", caliper="#d11a1a", crown=0.05, flare=0.04,
                  headlight=(0.52, 0.93, 1.35, 1.72), grille=(0.5, 0.78, 1.25), grille_bars=2, chrome=False,
-                 doors=[2.2, -1.0], seat_rows=[0.5], exhausts=(-1.2, -0.6, 0.6, 1.2), taillight=(0.3, 0.95, 2.2, 2.48))
+                 doors=[2.2, -1.0], seat_rows=[0.5], exhausts=(-1.2, -0.6, 0.6, 1.2), taillight=(0.3, 0.95, 2.2, 2.48),
+                 flush_handles=True, handle_drop=0.28)
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
@@ -87,7 +88,7 @@ def sports():
 def police():
     p = car_dims("PoliceCar", L=16.0, W=7.0, color="#f2f3f5", clear=0.78, belt=3.02, roof=4.82, hood_front=2.75, hood_cowl=3.1,
                  cowl=3.0, ws_top=1.0, roof_rear=-2.9, deck=-5.0, trunk=3.2, b_pillar=-0.9, arch=1.14, wheel_style="steel",
-                 rim_color="#1c1d20", chrome=False, antenna=False)
+                 rim_color="#1c1d20", chrome=False, antenna=False, black_handles=True)
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
@@ -379,6 +380,8 @@ def main():
             render(key, objs)
             if "--rear" in sys.argv:
                 render(key, objs, "_rear", (0.8, -1.0, 0.4))
+            if "--side" in sys.argv:
+                render(key, objs, "_side", (-1.0, 0.12, 0.12))
         print("BUILT", key, stats[key]["tris"], "tris", stats[key]["size"], "OVER 20k: %s" % over if over else "", flush=True)
     json.dump(stats, open(stats_path, "w"), indent=1)
 

@@ -16,6 +16,7 @@ local VehicleService = require(script.Parent.VehicleService)
 local CrashReportService = require(script.Parent.CrashReportService)
 local ScenarioService = require(script.Parent.ScenarioService)
 local SceneResetService = require(script.Parent.SceneResetService)
+local Progression = require(script.Parent.ProgressionService)
 
 -- Collision groups ---------------------------------------------------------
 for _, g in { "Player", "Dummy", "Vehicle", "VehicleDecor", "Prop" } do
@@ -132,7 +133,7 @@ local function onPlayer(player: Player)
 	if not starterGiven then
 		starterGiven = true
 		-- the bright yellow sports car, parked facing the first row of dummies
-		VehicleService.spawn(player, "SportsCar", false)
+		VehicleService.spawn(player, "Sedan", false)
 	end
 end
 Players.PlayerAdded:Connect(onPlayer)
@@ -143,6 +144,26 @@ Players.PlayerRemoving:Connect(function(player)
 	releaseGrab(player)
 end)
 
+local function notice(player: Player, text: string)
+	remotes.Notice:FireClient(player, text)
+end
+Progression.notify = notice
+Progression.init()
+table.insert(CrashReportService.reportListeners, function(report)
+	for _, p in Players:GetPlayers() do
+		Progression.award(p, report)
+	end
+end)
+
+-- every spawn path goes through here: locked vehicles are refused with the reason
+local function trySpawn(player: Player, key: string): Model?
+	if not Progression.canUse(player, key) then
+		notice(player, string.format("%s is locked - %s", Specs.Vehicles[key].display, Progression.lockReason(player, key)))
+		return nil
+	end
+	return VehicleService.spawn(player, key, true)
+end
+
 -- Stations on the plaza: walk onto a pad prompt to spawn that vehicle.
 for _, st in MapService.stations do
 	local prompt = Instance.new("ProximityPrompt")
@@ -152,7 +173,7 @@ for _, st in MapService.stations do
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = st.part
 	prompt.Triggered:Connect(function(player)
-		VehicleService.spawn(player, st.key, true)
+		trySpawn(player, st.key)
 	end)
 end
 
@@ -165,15 +186,12 @@ local function playerPos(player: Player): Vector3?
 	return root and root.Position
 end
 
-local function notice(player: Player, text: string)
-	remotes.Notice:FireClient(player, text)
-end
 
 local handlers = {}
 
 function handlers.SpawnVehicle(player, key)
 	if typeof(key) == "string" and Specs.Vehicles[key] then
-		VehicleService.spawn(player, key, true)
+		trySpawn(player, key)
 	end
 end
 
@@ -321,7 +339,7 @@ function handlers.LoadMap(player, name)
 	if char then
 		char:PivotTo(CFrame.new(12, 5, 52))
 	end
-	VehicleService.spawn(player, "SportsCar", false)
+	VehicleService.spawn(player, "Sedan", false)
 	notice(player, "Map: " .. name)
 end
 

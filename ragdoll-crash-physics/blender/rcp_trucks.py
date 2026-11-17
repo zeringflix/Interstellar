@@ -319,7 +319,7 @@ def register(builder, spec, car_dims):
             G["Trim"].append(P("doortop", side, (-2.3, 7.15, 1.8, 7.2), dark, 0.01))
             loc, nrm = surf.point(side, -1.7, 4.9)
             G["Trim"].append(box("handle", (0.12, 0.7, 0.16), loc + nrm * 0.06, M.STEEL(), bev=0.03))
-            for yy in (-1.9, 1.3):
+            for yy in (1.45,):  # hinges on the door's FRONT edge (it opens forward-hinged, like a car)
                 for zz in (3.3, 6.9):
                     loc, nrm = surf.point(side, yy, zz)
                     G["Trim"].append(box("hinge", (0.14, 0.2, 0.5), loc + nrm * 0.05, dark, bev=0.03))

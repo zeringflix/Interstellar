@@ -41,12 +41,47 @@ local function send(...)
 	request:FireServer(...)
 end
 
+-- unlock state, read from the attributes ProgressionService writes on the Player
+local PAID, COST, LADDER_ORDER = {}, {}, {}
+for _, p in Config.Progression.Paid do
+	PAID[p.vehicle] = p
+end
+for i, step in Config.Progression.Ladder do
+	COST[step[1]] = step[2]
+	LADDER_ORDER[i] = step[1]
+end
+local function unlocked(key: string): boolean
+	local list = player:GetAttribute("Unlocked")
+	if typeof(list) ~= "string" then
+		return key == LADDER_ORDER[1]
+	end
+	return table.find(string.split(list, ","), key) ~= nil
+end
+local function points(): number
+	return player:GetAttribute("CrashPoints") or 0
+end
+local function comma(n: number): string
+	local str = tostring(math.floor(n))
+	return (str:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
+end
+local function buyPass(key: string)
+	local p = PAID[key]
+	if p and p.passId > 0 then
+		MarketplaceService:PromptGamePassPurchase(player, p.passId)
+	else
+		UI.toast("Coming soon to the Shop")
+	end
+end
+
 local function toggle(name: string?)
 	local target = if openName == name then nil else name
 	for n, p in windows do
 		p.Visible = n == target
 	end
 	openName = target
+	if target == "Vehicles" and UI.refreshVehiclesIfDirty then
+		UI.refreshVehiclesIfDirty()
+	end
 	Audio.ui(if target then "uiOpen" else "uiClick", 0.4)
 	if target and UserInputService.GamepadEnabled and not mobile then
 		GuiService:Select(windows[target]) -- lets a controller move through the window
@@ -147,10 +182,27 @@ local function vehicleCard(parent: Instance, key: string, order: number)
 		vp.CurrentCamera = cam
 	end)
 	Gui.label(spec.klass, 11, { Position = UDim2.fromOffset(0, 112), Size = UDim2.new(1, 0, 0, 16), TextColor3 = T.dim, TextXAlignment = Enum.TextXAlignment.Center, Parent = card })
-	Gui.pill("SPAWN", "green", { Size = UDim2.new(1, -14, 0, 38), Position = UDim2.new(0, 7, 1, -45), TextSize = 20, Parent = card }, function()
-		send("SpawnVehicle", key)
-		toggle(nil)
-	end)
+	local btnProps = { Size = UDim2.new(1, -14, 0, 38), Position = UDim2.new(0, 7, 1, -45), TextSize = 20, Parent = card }
+	if unlocked(key) then
+		Gui.pill("SPAWN", "green", btnProps, function()
+			send("SpawnVehicle", key)
+			toggle(nil)
+		end)
+	elseif PAID[key] then
+		vp.ImageColor3 = Color3.fromRGB(150, 150, 160)
+		Gui.pill(if PAID[key].passId > 0 then "R$ " .. PAID[key].price else "SOON", if PAID[key].passId > 0 then "purple" else "grey", btnProps, function()
+			buyPass(key)
+		end)
+		Gui.label("ROBUX", 13, { Position = UDim2.fromOffset(10, 28), Size = UDim2.fromOffset(60, 16), TextColor3 = Color3.fromHex("#c89bff"), Parent = card })
+	else
+		vp.ImageColor3 = Color3.fromRGB(70, 70, 80) -- locked: darkened silhouette
+		local need = COST[key] or 0
+		local bar = Gui.make("Frame", { Position = UDim2.new(0, 7, 1, -58), Size = UDim2.new(1, -14, 0, 8), BackgroundColor3 = T.panel, Parent = card }, { Gui.corner(4) })
+		Gui.make("Frame", { Size = UDim2.fromScale(math.clamp(points() / math.max(need, 1), 0, 1), 1), BackgroundColor3 = T.warn, Parent = bar }, { Gui.corner(4) })
+		Gui.pill("LOCKED  " .. comma(need), "grey", btnProps, function()
+			UI.toast(string.format("Unlocks at %s crash points - crash into dummies to earn them", comma(need)))
+		end)
+	end
 end
 
 local function buildVehicles()
@@ -165,7 +217,8 @@ local function buildVehicles()
 		{ Gui.make("UIGridLayout", { CellSize = UDim2.fromOffset(if mobile then 132 else 172, 196), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
 			Gui.padding(4) })
 	local buttons = {}
-	local function show(cat: string)
+	local show
+	show = function(cat: string)
 		for _, c in gridHolder:GetChildren() do
 			if c:IsA("Frame") then
 				c:Destroy()
@@ -187,7 +240,27 @@ local function buildVehicles()
 			show(cat)
 		end)
 	end
+	local current, dirty = "Cars", false
+	local plain = show
+	show = function(cat: string)
+		current, dirty = cat, false
+		plain(cat)
+	end
 	show("Cars")
+	local function refresh()
+		if windows.Vehicles and windows.Vehicles.Visible then
+			show(current)
+		else
+			dirty = true
+		end
+	end
+	player:GetAttributeChangedSignal("Unlocked"):Connect(refresh)
+	player:GetAttributeChangedSignal("CrashPoints"):Connect(refresh)
+	UI.refreshVehiclesIfDirty = function()
+		if dirty then
+			show(current)
+		end
+	end
 end
 
 -- Sandbox ------------------------------------------------------------------------------------------
@@ -299,20 +372,42 @@ end
 local function buildShop()
 	local body = window("Shop", "Shop", "red", "shop", 620, 500)
 	Gui.list(8).Parent = body
+	Gui.label("ROBUX VEHICLES", 16, { LayoutOrder = 0, TextColor3 = T.dim, Parent = body })
 	for i, item in Config.Shop do
-		local card = Gui.panel({ Size = UDim2.new(1, -8, 0, 96), LayoutOrder = i, Parent = body })
-		Gui.label(item.name, 22, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -170, 0, 28), TextColor3 = Color3.fromHex(item.color or "#ffb02e"), Parent = card })
-		Gui.label(item.text, 13, { Position = UDim2.fromOffset(14, 36), Size = UDim2.new(1, -170, 0, 52), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Parent = card })
-		Gui.pill(if item.id > 0 then "R$ " .. item.price else "SOON", if item.id > 0 then "purple" else "grey",
+		local spec = Specs.Vehicles[item.vehicle]
+		local card = Gui.panel({ Size = UDim2.new(1, -8, 0, 110), LayoutOrder = i, Parent = body })
+		local vp = Gui.make("ViewportFrame", { Size = UDim2.fromOffset(150, 96), Position = UDim2.fromOffset(6, 7), BackgroundTransparency = 1,
+			Ambient = Color3.fromRGB(200, 200, 200), LightDirection = Vector3.new(-1, -2, -1), Parent = card })
+		task.spawn(function()
+			local model = VehicleBuilder.build(item.vehicle, true)
+			model.Parent = vp
+			local size = model:GetExtentsSize()
+			local centre = model:GetBoundingBox().Position
+			local cam = Instance.new("Camera")
+			cam.FieldOfView = 30
+			cam.CFrame = CFrame.lookAt(centre + Vector3.new(-0.8, 0.45, -1).Unit * (size.Magnitude * 1.05 / (2 * math.tan(math.rad(15)))), centre)
+			cam.Parent = vp
+			vp.CurrentCamera = cam
+		end)
+		Gui.label(string.upper(spec.display), 22, { Position = UDim2.fromOffset(166, 8), Size = UDim2.new(1, -320, 0, 28), TextColor3 = Color3.fromHex("#ffb02e"), Parent = card })
+		Gui.label(spec.klass .. "  -  yours forever, on every map", 13, { Position = UDim2.fromOffset(166, 40), Size = UDim2.new(1, -320, 0, 52),
+			TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Parent = card })
+		local owned = unlocked(item.vehicle)
+		local btn = Gui.pill(if owned then "OWNED" elseif item.id > 0 then "R$ " .. item.price else "SOON", if owned then "green" elseif item.id > 0 then "purple" else "grey",
 			{ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(134, 46), TextSize = 20, Parent = card }, function()
-				if item.id <= 0 then
-					UI.toast("Not on sale yet")
-				elseif item.kind == "pass" then
-					MarketplaceService:PromptGamePassPurchase(player, item.id)
+				if unlocked(item.vehicle) then
+					send("SpawnVehicle", item.vehicle)
+					toggle(nil)
 				else
-					MarketplaceService:PromptProductPurchase(player, item.id)
+					buyPass(item.vehicle)
 				end
 			end)
+		player:GetAttributeChangedSignal("Unlocked"):Connect(function()
+			if unlocked(item.vehicle) then
+				Gui.setText(btn, "SPAWN")
+				Gui.recolor(btn, "green")
+			end
+		end)
 	end
 end
 
@@ -440,6 +535,23 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 	request = remotes:WaitForChild("Request") :: RemoteEvent
 	local tile = if mobile then 76 else 104
 
+	-- crash points + next unlock, under the title
+	local pts = Gui.label("", if mobile then 12 else 15, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 58), Size = UDim2.fromOffset(420, 20),
+		TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = Color3.fromHex("#ffd24a"), Parent = screen })
+	local function paintPoints()
+		local nextKey
+		for _, k in LADDER_ORDER do
+			if not unlocked(k) then
+				nextKey = k
+				break
+			end
+		end
+		pts.Text = comma(points()) .. " CRASH POINTS" .. (if nextKey then string.format("   |   next: %s at %s", Specs.Vehicles[nextKey].display, comma(COST[nextKey])) else "   |   every unlockable vehicle unlocked")
+	end
+	paintPoints()
+	player:GetAttributeChangedSignal("CrashPoints"):Connect(paintPoints)
+	player:GetAttributeChangedSignal("Unlocked"):Connect(paintPoints)
+
 	-- left column: SHOP / VEHICLES / SANDBOX
 	local left = Gui.make("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, if mobile then 62 else 120), Size = UDim2.fromOffset(tile, tile * 3 + 20), Parent = screen }, { Gui.list(8) })
 	for i, def in { { "Shop", "shop" }, { "Vehicles", "car" }, { "Sandbox", "sandbox" } } do
@@ -480,7 +592,7 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 		local item = Config.Shop[i]
 		local b = Gui.make("TextButton", { Text = "", LayoutOrder = i, Size = UDim2.new(1, 0, 0, if mobile then 44 else 54), BackgroundColor3 = T.panel2, BackgroundTransparency = 0.25, Parent = right },
 			{ Gui.corner(6), Gui.stroke(T.stroke, 4) })
-		Gui.label(item.name, if mobile then 12 else 15, { Size = UDim2.new(1, 0, 0.55, 0), TextXAlignment = Enum.TextXAlignment.Center, Parent = b })
+		Gui.label(Specs.Vehicles[item.vehicle].display, if mobile then 12 else 15, { Size = UDim2.new(1, 0, 0.55, 0), TextXAlignment = Enum.TextXAlignment.Center, Parent = b })
 		Gui.label(if item.id > 0 then "R$ " .. item.price else "SOON", if mobile then 12 else 15, { Position = UDim2.fromScale(0, 0.5), Size = UDim2.new(1, 0, 0.5, 0),
 			TextColor3 = Color3.fromHex("#3cff55"), TextXAlignment = Enum.TextXAlignment.Center, Parent = b })
 		b.Activated:Connect(function()
@@ -508,7 +620,7 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 	reportBody = window("Report", "Crash Report", "blue", "replay", 460, 500)
 	Gui.list(4).Parent = reportBody
 
-	toastLabel = Gui.label("", 18, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 66), Size = UDim2.fromOffset(460, 30),
+	toastLabel = Gui.label("", 18, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 84), Size = UDim2.fromOffset(460, 30),
 		TextXAlignment = Enum.TextXAlignment.Center, Visible = false, Parent = screen })
 
 	-- replay banner

@@ -30,6 +30,29 @@ for _, w in { "Shop", "Vehicles", "Sandbox", "Settings", "Dummy", "Report", "Dam
 	check("UI element exists: " .. w, find(w) ~= nil)
 end
 
+-- progression UI: points line, Robux shop states
+local function captions(root)
+	local out = {}
+	for _, d in root:GetDescendants() do
+		if d:IsA("TextLabel") then
+			out[d.Text] = true
+		end
+	end
+	return out
+end
+local all = captions(screen)
+local ptsLine = nil
+for t in all do
+	if string.find(t, "CRASH POINTS") then
+		ptsLine = t
+	end
+end
+check("crash points shown under the title", ptsLine ~= nil, ptsLine)
+print("   points line        ->", ptsLine)
+local shop = captions(find("Shop"))
+check("shop sells the three Robux vehicles", shop["MONSTER TRUCK"] and shop["TANK"] and shop["ROCKET SLED"])
+check("owned pass shows OWNED, unreleased ones SOON", shop["OWNED"] and shop["SOON"])
+
 -- every dummy got a face and a floating name tag
 local faces, tags, total = 0, 0, 0
 for _, d in ws.Dummies:GetChildren() do

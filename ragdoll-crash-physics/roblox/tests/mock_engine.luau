@@ -270,7 +270,9 @@ function Mock.world()
 	end
 	local services = {
 		Players = players, Workspace = workspace,
-		RunService = { Heartbeat = heartbeat, RenderStepped = renderStepped, PreSimulation = signal(),
+		RunService = { IsStudio = function()
+			return false
+		end, Heartbeat = heartbeat, RenderStepped = renderStepped, PreSimulation = signal(),
 			BindToRenderStep = function(_, name, _, fn)
 				renderSteps[name] = fn
 			end },
@@ -294,7 +296,32 @@ function Mock.world()
 		GuiService = { GetGuiInset = function()
 			return roblox.Vector2.new(0, 36)
 		end, Select = function() end },
-		MarketplaceService = { PromptGamePassPurchase = function() end, PromptProductPurchase = function() end },
+		MarketplaceService = { PromptGamePassPurchase = function(_, player, id)
+			Mock.prompted = (Mock.prompted or 0) + 1
+		end, PromptProductPurchase = function() end, PromptGamePassPurchaseFinished = signal(),
+			UserOwnsGamePassAsync = function(_, userId, passId)
+				return Mock.ownedPasses and Mock.ownedPasses[passId] == true or false
+			end },
+		DataStoreService = { GetDataStore = function(_, name)
+			Mock.stores = Mock.stores or {}
+			local data = Mock.stores[name] or {}
+			Mock.stores[name] = data
+			local st = {}
+			function st:GetAsync(k)
+				if Mock.datastoreDown then
+					error("DataStore unavailable")
+				end
+				return data[k]
+			end
+			function st:UpdateAsync(k, fn)
+				if Mock.datastoreDown then
+					error("DataStore unavailable")
+				end
+				data[k] = fn(data[k])
+				return data[k]
+			end
+			return st
+		end },
 	}
 	local globals = {
 		workspace = workspace, services = services, task = {
@@ -395,7 +422,10 @@ function Mock.world()
 		end
 	end
 	services.ServerScriptService = dm:GetService("ServerScriptService")
-	local game = { Players = players, ReplicatedStorage = replicated }
+	local game = { Players = players, ReplicatedStorage = replicated, BindToClose = function(_, fn)
+		Mock.closeHandlers = Mock.closeHandlers or {}
+		table.insert(Mock.closeHandlers, fn)
+	end }
 	function game:GetService(name)
 		return services[name] or error("mock: no service " .. name)
 	end
@@ -456,6 +486,22 @@ function Mock.player(world, userId: number)
 	local scripts = roblox.Instance.new("Folder")
 	scripts.Name = "PlayerScripts"
 	local p = { UserId = userId, Name = "Tester", Character = char, CharacterAdded = signal(), CameraMaxZoomDistance = 100, CameraMinZoomDistance = 0.5 }
+	local attrs, attrSignals = {}, {}
+	function p:SetAttribute(k, v)
+		if attrs[k] ~= v then
+			attrs[k] = v
+			if attrSignals[k] then
+				attrSignals[k]:Fire()
+			end
+		end
+	end
+	function p:GetAttribute(k)
+		return attrs[k]
+	end
+	function p:GetAttributeChangedSignal(k)
+		attrSignals[k] = attrSignals[k] or signal()
+		return attrSignals[k]
+	end
 	function p:WaitForChild(name)
 		return if name == "PlayerGui" then gui else scripts
 	end

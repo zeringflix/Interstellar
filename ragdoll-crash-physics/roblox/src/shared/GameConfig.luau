@@ -94,14 +94,33 @@ Config.Map = {
 	},
 }
 
--- Shop entries. id = 0 means "not on sale yet" (the button says SOON). Create the game passes /
--- developer products on the Creator Dashboard and paste their ids here to switch them on.
-Config.Shop = {
-	{ name = "Explosion Pack", text = "Bigger crash explosions and the Blast event with no cooldown.", price = 34, id = 0, kind = "pass", color = "#ff7a2e" },
-	{ name = "Heavy Garage", text = "Early access to new heavy vehicles as they are added.", price = 79, id = 0, kind = "pass", color = "#ffd24a" },
-	{ name = "Dummy Army", text = "Raises the dummy limit and unlocks Dummy Rain x2.", price = 200, id = 0, kind = "pass", color = "#7dff8a" },
-	{ name = "VIP", text = "All of the above plus a VIP name tag.", price = 199, id = 0, kind = "pass", color = "#ff4d8d" },
+-- Progression -----------------------------------------------------------------------------------
+-- Vehicles are ranked from least to most cool. The first 14 unlock in that order as the player's
+-- lifetime CRASH POINTS grow (points come only from verified crash reports that a vehicle started).
+-- The 3 coolest are Robux game passes: create them on the Creator Dashboard (Monetization > Passes)
+-- and paste each pass id below; while an id is 0 the vehicle shows "SOON" and stays locked.
+Config.Progression = {
+	Ladder = { -- { vehicle, lifetime crash points needed }
+		{ "Sedan", 0 }, { "GoKart", 1500 }, { "CityBus", 4000 }, { "PickupTruck", 8000 }, { "DumpTruck", 13000 },
+		{ "PoliceCar", 19000 }, { "MuscleCar", 26000 }, { "Bulldozer", 34000 }, { "Train", 43000 }, { "SmallPlane", 53000 },
+		{ "ArmoredTruck", 64000 }, { "SportsCar", 76000 }, { "Helicopter", 90000 }, { "CargoPlane", 110000 },
+	},
+	Paid = { -- coolest last
+		{ vehicle = "MonsterTruck", passId = 0, price = 99 },
+		{ vehicle = "Tank", passId = 0, price = 149 },
+		{ vehicle = "RocketSled", passId = 0, price = 199 },
+	},
+	MAX_POINTS_PER_CRASH = 15000, -- one report can never award more than this
+	DATASTORE = "RCP_Progress_v1",
+	AUTOSAVE_SECONDS = 120,
+	StudioUnlockAll = false, -- true = every vehicle usable while testing in Studio (never in a live server)
 }
+
+-- Shop window: the three Robux vehicles (built from Config.Progression.Paid).
+Config.Shop = {}
+for _, p in Config.Progression.Paid do
+	table.insert(Config.Shop, { vehicle = p.vehicle, price = p.price, id = p.passId, kind = "pass" })
+end
 
 -- Crash explosions: velocity lost in one physics step (studs/s) that turns a crash into a fireball.
 Config.Explosion = { GROUND_DV = 70, AIRCRAFT_DV = 45, RADIUS = 30, COOLDOWN = 2 }

@@ -317,7 +317,7 @@ function MapService.build(name: string?): (Folder, BasePart)
 		props = previous:FindFirstChild("Props") :: Folder
 		lighting(theme)
 		MapService.stations = {}
-		for _, key in { "Sedan", "MonsterTruck", "Tank", "SmallPlane" } do
+		for _, key in { "Sedan", "PickupTruck", "PoliceCar", "SmallPlane" } do
 			local st = static:FindFirstChild("Station" .. key)
 			if st then
 				table.insert(MapService.stations, { part = st, key = key })
@@ -420,7 +420,7 @@ function MapService.build(name: string?): (Folder, BasePart)
 	scaffold(52, 62, 2)
 	-- quick-spawn pads
 	MapService.stations = {}
-	for i, key in { "Sedan", "MonsterTruck", "Tank", "SmallPlane" } do
+	for i, key in { "Sedan", "PickupTruck", "PoliceCar", "SmallPlane" } do
 		local p = block("Station" .. key, Vector3.new(8, 0.5, 8), Vector3.new(38 + (i - 1) * 0, 0.35, 12 + (i - 1) * 10), C.blue)
 		p.Material = Enum.Material.Neon
 		p.Transparency = 0.25

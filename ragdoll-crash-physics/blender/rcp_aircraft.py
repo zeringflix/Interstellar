@@ -107,6 +107,9 @@ def register(builder, spec, car_dims):
             G["Trim"].append(tube("exhaust", [(sg * 0.7, 9.6, cz - 1.3), (sg * 0.8, 9.2, cz - 1.75), (sg * 0.8, 8.6, cz - 1.9)], 0.13, M.STEEL(), segs=10, smooth=3))
             G["Trim"].append(P("inlet", "F", (sg * 0.95 - 0.42, cz + 0.1, sg * 0.95 + 0.42, cz + 0.7), M.DARK(), 0.01, res=0.06, round_r=0.3))
             G["Trim"].append(box("step", (0.5, 0.5, 0.06), (sg * 1.85, 1.2, cz - 1.5), M.STEEL(), bev=0.02))
+            # cabin door: flush pull handle near the rear edge, under the window, set in a recess
+            G["Trim"].append(P("handlepocket", side, (1.75, cz - 0.42, 2.45, cz - 0.18), M.mat("Pocket", "#121315", rough=0.35), 0.01, res=0.04, round_r=0.1))
+            G["Trim"].append(C.pull_handle(surf, side, 2.1, cz - 0.3, 0.55, M.CHROME(), flush=True))
         G["Trim"].append(P("chin", "F", (-0.5, cz - 1.15, 0.5, cz - 0.6), M.DARK(), 0.01, res=0.06, round_r=0.25))
         # wing: NACA 2413, taper, 5 degrees of dihedral
         dih = math.tan(math.radians(5))

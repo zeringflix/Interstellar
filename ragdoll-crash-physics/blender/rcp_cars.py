@@ -126,6 +126,76 @@ def interior(p, lhd=True):
     return parts
 
 
+def pull_handle(surf, side, yc, zc, length, material, flush=False):
+    """Pull-type exterior handle: a flattened bar that follows the door's curve, standing off the
+    skin in the middle and blending into it at both ends (where it is mounted)."""
+    import mathutils
+    rings = []
+    n = 9
+    for k in range(n):
+        t = k / (n - 1)
+        u = (t - 0.5) * length
+        loc, nrm = surf.point(side, yc + u, zc)
+        if loc is None:
+            continue
+        stand = (0.025 if flush else 0.075) * math.sin(math.pi * min(1.0, 0.15 + 0.7 * t + 0.0)) + 0.012
+        a = (0.022 if flush else 0.045) * (0.55 + 0.45 * math.sin(math.pi * t))  # thickness off the door
+        b = 0.075 * (0.7 + 0.3 * math.sin(math.pi * t))                        # height
+        up = mathutils.Vector((0, 0, 1))
+        up = (up - nrm * up.dot(nrm)).normalized()
+        c = loc + nrm * stand
+        rings.append([tuple(c + nrm * (a * math.cos(M.TAU * j / 12)) + up * (b * math.sin(M.TAU * j / 12))) for j in range(12)])
+    ob = loft("handle", rings, material)
+    M.subsurf(ob, 1)
+    return ob
+
+
+def window_trim(glass, material, radius=0.045):
+    """Rubber / chrome surround traced around every side window (the door frame line)."""
+    import bmesh
+    import mathutils
+    bm = bmesh.new()
+    bm.from_mesh(glass.data)
+    bm.faces.ensure_lookup_table()
+    side = {f for f in bm.faces if abs(f.normal.x) > 0.5}
+    loops_edges = [e for e in bm.edges if sum(1 for f in e.link_faces if f in side) == 1]
+    adj = {}
+    for e in loops_edges:
+        a, b = e.verts
+        adj.setdefault(a, []).append(b)
+        adj.setdefault(b, []).append(a)
+    seen = set()
+    trims = []
+    for start in list(adj):
+        if start in seen:
+            continue
+        loop, prev, cur = [start], None, start
+        seen.add(start)
+        while True:
+            nxt = [v for v in adj[cur] if v is not prev and v not in seen]
+            if not nxt:
+                break
+            prev, cur = cur, nxt[0]
+            seen.add(cur)
+            loop.append(cur)
+        if len(loop) < 8:
+            continue
+        pts = []
+        for v in loop:
+            nrm = mathutils.Vector((0, 0, 0))
+            for f in v.link_faces:
+                if f in side:
+                    nrm += f.normal
+            nrm = nrm.normalized() if nrm.length > 0 else mathutils.Vector((1 if v.co.x > 0 else -1, 0, 0))
+            pts.append(glass.matrix_world @ (v.co + nrm * 0.015))
+        for _ in range(3):  # smooth out the stair-steps the subdivided glass edge leaves
+            n = len(pts)
+            pts = [(pts[i - 1] + pts[i] * 2 + pts[(i + 1) % n]) / 4 for i in range(n)]
+        trims.append(tube("windowtrim", pts, radius, material, segs=6, closed=True))
+    bm.free()
+    return trims
+
+
 def mirror_pod(surf, p, paint, side):
     y, z = p["cowl"] - 0.15, p["belt"] + 0.18
     loc, _ = surf.point("R" if side > 0 else "L", y, z - 0.1)
@@ -196,11 +266,30 @@ def details(surf, p, paint, G):
             add("Trim", P("seam", side, (y - 0.022, c + 0.3, y + 0.022, belt - 0.02), seam, 0.006, res=0.1))
         add("Trim", P("sill", side, (doors[-1], c + 0.28, doors[0], c + 0.325), seam, 0.006, res=0.15))
         add("Trim", P("beltline", side, (ydk + 0.1, belt - 0.035, yc - 0.1, belt + 0.035), M.CHROME() if p.get("chrome", True) else M.DARK(), 0.012, res=0.15))
-        for a, b in zip(doors[:-1], doors[1:]):
-            yh = b - 0.55
-            loc, nrm = surf.point(side, yh, belt - 0.38)
-            if loc is not None:
-                G["Trim"].append(box("handle", (0.07, 0.48, 0.11), loc + nrm * 0.035, M.CHROME() if p.get("chrome", True) else paint, bev=0.03))
+        # Handles: one per door, near the door's REAR edge (doors run front -> rear, y decreases rearward),
+        # a little below the window line, set in a darker recessed pocket. Body-coloured on modern
+        # cars, chrome on cars with chrome trim, black on the police car.
+        hmat = M.CHROME() if p.get("chrome", True) else (M.DARK() if p.get("black_handles") else paint)
+        for di, (a, b) in enumerate(zip(doors[:-1], doors[1:])):
+            length = min(0.95, (a - b) * 0.3)
+            yh = b + 0.28 + length / 2
+            zh = belt - p.get("handle_drop", 0.34)
+            add("Trim", P("pocket", side, (yh - length / 2 - 0.1, zh - 0.17, yh + length / 2 + 0.1, zh + 0.11), M.mat("Pocket", "#121315", rough=0.35), 0.008, res=0.04, round_r=0.12))
+            G["Trim"].append(pull_handle(surf, side, yh, zh, length, hmat, flush=p.get("flush_handles", False)))
+            if side == "L" and di == 0 and not p.get("flush_handles"):
+                loc, nrm = surf.point(side, yh + length / 2 + 0.1, zh)
+                if loc is not None:
+                    G["Trim"].append(cyl("keylock", 0.055, 0.05, loc + nrm * 0.02, M.CHROME(), "X", segs=16, bev=0.01))
+        # B-pillar blackout between the side windows
+        yb_ = p.get("b_pillar", (p["ws_top"] + p["roof_rear"]) / 2)
+        add("Trim", P("bpillar", side, (yb_ - 0.2, belt + 0.06, yb_ + 0.2, p["roof"] - 0.28), M.mat("PillarBlack", "#0d0e10", rough=0.25), 0.01, res=0.06))
+        # fuel filler door on the right-hand rear quarter
+        if side == "R" and p.get("fuel", True):
+            yf = p["axle_r"] - p["wheel_r"] * 1.3
+            if yf > -p["L"] / 2 + 0.9:
+                zf = belt - 0.5
+                add("Trim", P("fuelseam", side, (yf - 0.33, zf - 0.3, yf + 0.33, zf + 0.3), seam, 0.006, res=0.04, round_r=0.12))
+                add("Body", P("fueldoor", side, (yf - 0.3, zf - 0.27, yf + 0.3, zf + 0.27), paint, 0.009, res=0.04, round_r=0.1))
         add("Lights", P("repeater", side, (p["axle_f"] + p["wheel_r"] * 1.35, belt - 0.5, p["axle_f"] + p["wheel_r"] * 1.35 + 0.3, belt - 0.38), M.AMBER(), 0.012))
         # arch lip
     # ---- top: bonnet + boot shut-lines, wipers, antenna
@@ -242,6 +331,8 @@ def build_car(p, wheels, extras=None, extra_cut=None):
         G["Glass"].append(glass)
     if p.get("interior", True):
         G["Trim"] += interior(p)
+    if glass:
+        G["Trim"] += window_trim(glass, M.CHROME() if p.get("chrome", True) else M.mat("Seal", "#0f1012", rough=0.55))
     details(surf, p, paint, G)
     # wheel-well liners + axle stubs
     ar = p["wheel_r"] * p.get("arch", 1.2)
