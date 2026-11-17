@@ -260,36 +260,68 @@ def details(surf, p, paint, G):
 
     # ---- sides: shut-lines, handles, trim
     seam = M.DARK()
-    doors = p.get("doors", [yc - 0.35, yb, p["roof_rear"] - 0.2])
+    r = p["wheel_r"]
+    arch_r = r * p.get("arch", 1.2)
+    arch_z = r * p.get("arch_z", 0.95)
+    # Door layout measured off real side views (see docs): a front door starts ~1.3 r behind the
+    # front wheel centre (just clear of the arch), the B-pillar seam sits at the front edge of the
+    # blacked-out pillar, and the rear door ends at the rear side window, curving round the rear arch.
+    doors = p.get("doors") or [p["axle_f"] - 1.3 * r, yb + 0.2, p["roof_rear"] - 0.15]
+    sill_z = c + 0.3
+
+    def outside_arches(y, z, gap=0.14):
+        for ay in (p["axle_f"], p["axle_r"]):
+            dy, dz = y - ay, z - arch_z
+            d = math.hypot(dy, dz)
+            if d < arch_r + gap:
+                k = (arch_r + gap) / max(d, 1e-3)
+                y, z = ay + dy * k, arch_z + dz * k
+        return y, z
+
+    def groove(side, pts_yz):
+        """A shut-line as a thin dark groove that follows the body surface (and curves round arches)."""
+        pts = []
+        for y, z in pts_yz:
+            y, z = outside_arches(y, z)
+            loc, nrm = surf.point(side, y, z)
+            if loc is not None:
+                pts.append(loc + nrm * 0.004)
+        if len(pts) >= 2:
+            G["Trim"].append(tube("seam", pts, 0.024, seam, segs=5))
+
+    def vertical(y, z0, z1, n=14):
+        return [(y, z0 + (z1 - z0) * k / (n - 1)) for k in range(n)]
+
     for side in ("L", "R"):
         for y in doors:
-            add("Trim", P("seam", side, (y - 0.022, c + 0.3, y + 0.022, belt - 0.02), seam, 0.006, res=0.1))
-        add("Trim", P("sill", side, (doors[-1], c + 0.28, doors[0], c + 0.325), seam, 0.006, res=0.15))
+            groove(side, vertical(y, belt - 0.03, sill_z))
+        groove(side, [(doors[-1] + (doors[0] - doors[-1]) * k / 30, sill_z) for k in range(31)])
         add("Trim", P("beltline", side, (ydk + 0.1, belt - 0.035, yc - 0.1, belt + 0.035), M.CHROME() if p.get("chrome", True) else M.DARK(), 0.012, res=0.15))
-        # Handles: one per door, near the door's REAR edge (doors run front -> rear, y decreases rearward),
-        # a little below the window line, set in a darker recessed pocket. Body-coloured on modern
-        # cars, chrome on cars with chrome trim, black on the police car.
-        hmat = M.CHROME() if p.get("chrome", True) else (M.DARK() if p.get("black_handles") else paint)
-        for di, (a, b) in enumerate(zip(doors[:-1], doors[1:])):
-            length = min(0.95, (a - b) * 0.3)
-            yh = b + 0.28 + length / 2
-            zh = belt - p.get("handle_drop", 0.34)
-            add("Trim", P("pocket", side, (yh - length / 2 - 0.1, zh - 0.17, yh + length / 2 + 0.1, zh + 0.11), M.mat("Pocket", "#121315", rough=0.35), 0.008, res=0.04, round_r=0.12))
-            G["Trim"].append(pull_handle(surf, side, yh, zh, length, hmat, flush=p.get("flush_handles", False)))
-            if side == "L" and di == 0 and not p.get("flush_handles"):
-                loc, nrm = surf.point(side, yh + length / 2 + 0.1, zh)
-                if loc is not None:
-                    G["Trim"].append(cyl("keylock", 0.055, 0.05, loc + nrm * 0.02, M.CHROME(), "X", segs=16, bev=0.01))
+        # Handles: on its own door, near the REAR edge (doors run front -> rear, y decreases rearward),
+        # just under the window line, in a recessed pocket. Sizes from the references: length ~0.67 r,
+        # rear end ~0.17 r from the rear edge on a front door, ~0.38 r on a rear door.
+        if p.get("handles", True):
+            hmat = M.CHROME() if p.get("chrome", True) else (M.DARK() if p.get("black_handles") else paint)
+            last = len(doors) - 2
+            for di, (a, b) in enumerate(zip(doors[:-1], doors[1:])):
+                length = min(0.67 * r, (a - b) * 0.3)
+                gap = p.get("handle_gap", 0.17 if di == 0 else 0.38) * r
+                yh = b + gap + length / 2
+                zh = belt - p.get("handle_drop", 0.2)
+                add("Trim", P("pocket", side, (yh - length / 2 - 0.08, zh - 0.15, yh + length / 2 + 0.08, zh + 0.09), M.mat("Pocket", "#121315", rough=0.35), 0.008, res=0.04, round_r=0.11))
+                G["Trim"].append(pull_handle(surf, side, yh, zh, length, hmat, flush=p.get("flush_handles", False)))
+                if side == "L" and di == 0 and not p.get("flush_handles"):
+                    loc, nrm = surf.point(side, yh + length / 2 + 0.09, zh)
+                    if loc is not None:
+                        G["Trim"].append(cyl("keylock", 0.05, 0.05, loc + nrm * 0.02, M.CHROME(), "X", segs=16, bev=0.01))
         # B-pillar blackout between the side windows
-        yb_ = p.get("b_pillar", (p["ws_top"] + p["roof_rear"]) / 2)
-        add("Trim", P("bpillar", side, (yb_ - 0.2, belt + 0.06, yb_ + 0.2, p["roof"] - 0.28), M.mat("PillarBlack", "#0d0e10", rough=0.25), 0.01, res=0.06))
-        # fuel filler door on the right-hand rear quarter
+        if p.get("b_blackout", True):
+            add("Trim", P("bpillar", side, (yb - 0.2, belt + 0.06, yb + 0.2, p["roof"] - 0.28), M.mat("PillarBlack", "#0d0e10", rough=0.25), 0.01, res=0.06))
+        # fuel filler door: right-hand side, just behind the rear wheel centre, at handle height
         if side == "R" and p.get("fuel", True):
-            yf = p["axle_r"] - p["wheel_r"] * 1.3
-            if yf > -p["L"] / 2 + 0.9:
-                zf = belt - 0.5
-                add("Trim", P("fuelseam", side, (yf - 0.33, zf - 0.3, yf + 0.33, zf + 0.3), seam, 0.006, res=0.04, round_r=0.12))
-                add("Body", P("fueldoor", side, (yf - 0.3, zf - 0.27, yf + 0.3, zf + 0.27), paint, 0.009, res=0.04, round_r=0.1))
+            yf, zf, h = p["axle_r"] - 0.28 * r, belt - p.get("handle_drop", 0.2), 0.25
+            if zf - h > arch_z + arch_r + 0.08:
+                groove(side, [(yf + 0.27 * math.cos(t), zf + h * math.sin(t)) for t in [M.TAU * k / 24 for k in range(25)]])
         add("Lights", P("repeater", side, (p["axle_f"] + p["wheel_r"] * 1.35, belt - 0.5, p["axle_f"] + p["wheel_r"] * 1.35 + 0.3, belt - 0.38), M.AMBER(), 0.012))
         # arch lip
     # ---- top: bonnet + boot shut-lines, wipers, antenna
@@ -326,13 +358,20 @@ def build_car(p, wheels, extras=None, extra_cut=None):
     shell = body_shell(p, paint, extra_cut)
     surf = M.Surface(shell)
     body, glass = split_glass(shell)
+    if glass:
+        G["Trim"] += window_trim(glass, M.CHROME() if p.get("chrome", True) else M.mat("Seal", "#0f1012", rough=0.55))
+    if glass and not p.get("side_glass", True):  # open side windows (monster truck shell)
+        import bmesh
+        bm = bmesh.new()
+        bm.from_mesh(glass.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if abs(f.normal.x) > 0.5], context="FACES")
+        bm.to_mesh(glass.data)
+        bm.free()
     G["Body"].append(body)
     if glass:
         G["Glass"].append(glass)
     if p.get("interior", True):
         G["Trim"] += interior(p)
-    if glass:
-        G["Trim"] += window_trim(glass, M.CHROME() if p.get("chrome", True) else M.mat("Seal", "#0f1012", rough=0.55))
     details(surf, p, paint, G)
     # wheel-well liners + axle stubs
     ar = p["wheel_r"] * p.get("arch", 1.2)

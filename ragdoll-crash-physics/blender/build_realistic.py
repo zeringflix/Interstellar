@@ -60,11 +60,11 @@ def sedan():
 @builder("SportsCar")
 def sports():
     p = car_dims("SportsCar", L=16.2, W=7.2, color="#f6c40f", clear=0.5, belt=2.5, roof=3.72, hood_front=1.85, hood_cowl=2.5,
-                 cowl=2.6, ws_top=0.2, roof_rear=-2.3, deck=-5.9, trunk=2.72, b_pillar=-1.0, arch=1.16, roof_w=0.68, nose_w=0.8,
+                 cowl=2.6, ws_top=0.2, roof_rear=-2.3, deck=-5.9, trunk=2.72, b_pillar=-1.8, arch=1.16, roof_w=0.68, nose_w=0.8,
                  tail_w=0.92, wheel_style="sport10", rim_color="#2a2c30", caliper="#d11a1a", crown=0.05, flare=0.04,
                  headlight=(0.52, 0.93, 1.35, 1.72), grille=(0.5, 0.78, 1.25), grille_bars=2, chrome=False,
-                 doors=[2.2, -1.0], seat_rows=[0.5], exhausts=(-1.2, -0.6, 0.6, 1.2), taillight=(0.3, 0.95, 2.2, 2.48),
-                 flush_handles=True, handle_drop=0.28)
+                 doors=[2.22, -2.0], seat_rows=[0.5], exhausts=(-1.2, -0.6, 0.6, 1.2), taillight=(0.3, 0.95, 2.2, 2.48),
+                 flush_handles=True, handle_drop=0.45, handle_gap=0.14)
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
@@ -123,8 +123,8 @@ def police():
 @builder("MuscleCar")
 def muscle():
     p = car_dims("MuscleCar", L=17.6, W=7.4, color="#b3161a", clear=0.7, belt=3.05, roof=4.5, hood_front=2.8, hood_cowl=3.12,
-                 cowl=2.0, ws_top=0.2, roof_rear=-2.6, deck=-6.2, trunk=3.22, b_pillar=-1.1, arch=1.14, roof_w=0.72, nose_w=0.92,
-                 tail_w=0.94, wheel_style="alloy5", rim_color="#d8dbe0", doors=[1.6, -1.6], seat_rows=[-0.3, -2.4],
+                 cowl=2.0, ws_top=0.2, roof_rear=-2.6, deck=-6.2, trunk=3.22, b_pillar=-2.0, arch=1.14, roof_w=0.72, nose_w=0.92,
+                 tail_w=0.94, wheel_style="alloy5", rim_color="#d8dbe0", doors=[2.15, -2.2], seat_rows=[-0.3, -2.4], handle_drop=0.42, handle_gap=0.14,
                  headlight=(0.62, 0.9, 2.05, 2.5), grille=(0.58, 1.75, 2.55), grille_bars=5, exhausts=(-2.4, 2.4), flare=0.035,
                  taillight=(0.2, 0.95, 2.55, 2.95))
 
@@ -147,13 +147,14 @@ def muscle():
     return C.build_car(p, spec("MuscleCar")["wheels"], extras)
 
 
-def pickup_body(key, color, wheels, lift=0.0, style="offroad"):
+def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
     s = spec(key)
     p = car_dims("PickupTruck", L=18.6, W=7.6, color=color, clear=1.25, belt=4.15, roof=6.25, hood_front=3.8, hood_cowl=4.2,
                  cowl=4.9, ws_top=3.3, roof_rear=0.7, deck=0.35, trunk=4.3, b_pillar=2.0, arch=1.13, roof_w=0.8, nose_w=0.94, tail_w=0.97,
-                 wheel_style=style, rim_color="#c9ccd1", doors=[4.4, 0.75], seat_rows=[2.3], quarter_glass=False, crown=0.05, flare=0.03,
+                 wheel_style=style, rim_color="#c9ccd1", doors=[3.4, 0.75], seat_rows=[2.3], quarter_glass=False, crown=0.05, flare=0.03,
                  headlight=(0.58, 0.92, 2.95, 3.5), grille=(0.52, 2.2, 3.55), grille_bars=4, exhausts=(2.6,), taillight=(0.86, 0.97, 2.9, 3.9),
-                 plate_front=True, antenna=False)
+                 plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25)
+    p.update(over)
 
     def extras(p, surf, paint, G):
         body = G["Body"][0]
@@ -185,7 +186,10 @@ def pickup():
 def monster():
     s = spec("MonsterTruck")
     fake = [dict(pos=[sx * 3.15, 1.7, z], radius=1.7, width=1.3) for z in (-5.58, 5.58) for sx in (-1, 1)]
-    p, G = pickup_body("MonsterTruck", "#7a22d6", [], style="offroad")
+    # Built like a real monster truck (see the reference photo): a fibreglass body shell with no
+    # working doors or handles and open side windows, sat on an exposed tube chassis with a
+    # mid-mounted V8, four bypass shocks per corner, beadlock wheels on huge lugged tyres.
+    p, G = pickup_body("MonsterTruck", "#7a22d6", [], style="offroad", handles=False, fuel=False, side_glass=False, chrome=False)
     for ob in G["Wheels"]:
         bpy.data.objects.remove(ob)
     G["Wheels"] = []
@@ -225,6 +229,37 @@ def monster():
         G["Trim"].append(C.tube("cagex", [(-3.0, y, LIFT + 6.7), (3.0, y, LIFT + 6.7)], 0.14, steel, segs=10))
     for y in (ys[0] * 0.6, 0, ys[1] * 0.6):
         G["Trim"].append(C.tube("cross", [(-1.7, y, LIFT + 0.9), (1.7, y, LIFT + 0.9)], 0.18, steel, segs=10))
+    # three more bypass shocks per corner (silver bodies, external tubes, reservoir cans)
+    silver = M.mat("BypassShock", "#c9ccd1", rough=0.25, metal=1.0)
+    for y in ys:
+        for sx in (-1, 1):
+            for k, (dx, dy) in enumerate(((0.55, 0.45), (-0.45, 0.6), (0.1, -0.55))):
+                bot = Vector((sx * (3.0 + dx * 0.3), y + dy * 0.6, zr + 0.4))
+                top = Vector((sx * (2.0 + dx * 0.25), y * 0.62 + dy * 0.8, LIFT + 1.7))
+                G["Trim"].append(C.tube("bypass", [bot, top], 0.2, silver, segs=12))
+                G["Trim"].append(C.tube("bypassrod", [bot, bot.lerp(top, 0.25)], 0.08, M.CHROME(), segs=8))
+                side = (top - bot).cross(Vector((0, 1, 0))).normalized() * 0.24
+                G["Trim"].append(C.tube("bypasstube", [bot.lerp(top, 0.35) + side, top - (top - bot) * 0.1 + side], 0.05, silver, segs=6))
+                G["Trim"].append(C.cyl("reservoir", 0.22, 0.9, top + Vector((sx * 0.35, 0, -0.5)), silver, "Z", segs=14))
+    # mid-mounted V8: block, heads, valve covers, blower, and long-tube headers sweeping back
+    blk = M.mat("Engine", "#30333a", rough=0.5, metal=0.6)
+    ez = LIFT + 0.4
+    G["Trim"].append(C.box("block", (1.6, 2.8, 1.2), (0, 0.8, ez), blk, bev=0.15))
+    for sx in (-1, 1):
+        G["Trim"].append(C.box("head", (0.9, 2.6, 0.55), (sx * 0.95, 0.8, ez + 0.65), blk, bev=0.1, rot=(0, sx * math.radians(35), 0)))
+        G["Trim"].append(C.box("valvecover", (0.7, 2.4, 0.25), (sx * 1.15, 0.8, ez + 0.98), M.mat("ValveCover", "#b3201b", rough=0.3, metal=0.7), bev=0.08, rot=(0, sx * math.radians(35), 0)))
+        for k in range(4):  # one primary per cylinder, merging into a collector that drops down and back
+            y0 = 1.85 - k * 0.7
+            pts = [(sx * 1.25, y0, ez + 0.35), (sx * 1.75, y0 - 0.1, ez + 0.2), (sx * 1.95, y0 - 0.5, ez - 0.4), (sx * 1.85, -0.9, ez - 0.9 + k * 0.08), (sx * 1.7, -2.0, ez - 1.0)]
+            G["Trim"].append(C.tube("header", pts, 0.11, M.mat("Header", "#8d8f94", rough=0.3, metal=1.0), segs=8, smooth=4))
+        G["Trim"].append(C.tube("collector", [(sx * 1.7, -2.0, ez - 1.0), (sx * 1.6, -3.6, ez - 1.1)], 0.24, M.mat("Header", "#8d8f94", rough=0.3, metal=1.0), segs=12))
+    G["Trim"].append(C.box("blower", (1.0, 1.4, 0.7), (0, 0.9, LIFT + 1.25), M.ALLOY(), bev=0.1))
+    G["Trim"].append(C.box("transmission", (0.9, 1.8, 0.8), (0, -1.4, ez - 0.1), blk, bev=0.12))
+    # cage inside the cab, visible through the open windows
+    for y in (2.4, 0.9):
+        G["Trim"].append(C.tube("cabhoop", [(-2.9, y, LIFT + 1.6), (-2.8, y, LIFT + 5.8), (2.8, y, LIFT + 5.8), (2.9, y, LIFT + 1.6)], 0.13, steel, segs=10, smooth=3))
+    G["Trim"].append(C.tube("cabbar", [(-2.8, 2.4, LIFT + 5.8), (-2.8, 0.9, LIFT + 5.8)], 0.12, steel, segs=8))
+    G["Trim"].append(C.tube("cabbar", [(2.8, 2.4, LIFT + 5.8), (2.8, 0.9, LIFT + 5.8)], 0.12, steel, segs=8))
     for sx in (-1, 1):
         G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (sx * 1.2, 2.9, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))
     G["Lights"].append(C.box("rooflight", (0.7, 0.3, 0.5), (0, 2.9, LIFT + 6.55), M.HEADLIGHT(), bev=0.1))

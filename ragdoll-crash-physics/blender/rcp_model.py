@@ -482,6 +482,16 @@ def wheel(name, r, w, style="alloy5", side=1, color=None, caliper="#b3261e", rim
             boolean(centre, cut)
         parts.append(centre)
         nl = 8
+        if style == "monster":  # beadlock ring bolted round the rim lip, deep dished hub
+            ring = lathe("beadlock", [(rim_r * 0.84, face_x * 0.95), (rim_r * 1.06, face_x * 0.95), (rim_r * 1.06, face_x * 1.18), (rim_r * 0.84, face_x * 1.18)],
+                         mat("Beadlock", "#ff5a1f", rough=0.35, metal=0.6), segs=48, axis="X", close=True)
+            parts.append(ring)
+            for k in range(30):
+                a = TAU * k / 30
+                parts.append(cyl("bbolt", rim_r * 0.03, face_x * 0.12, (face_x * 1.24, rim_r * 0.95 * math.cos(a), rim_r * 0.95 * math.sin(a)), CHROME(), "X", segs=6, bev=0.004))
+            hubc = lathe("hubcap", [(0, face_x * 0.9), (rim_r * 0.28, face_x * 0.88), (rim_r * 0.33, face_x * 0.6), (0, face_x * 0.6)], mat("HubSteel", "#c9ccd1", rough=0.4, metal=0.9), segs=32, axis="X")
+            parts.append(hubc)
+            nl = 10
     else:
         n = dict(alloy5=5, sport10=10, mesh=14, kart=3).get(style, 5)
         pair = style == "sport10"

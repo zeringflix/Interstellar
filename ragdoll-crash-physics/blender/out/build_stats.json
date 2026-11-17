@@ -1,16 +1,16 @@
 {
  "Sedan": {
   "objects": {
-   "Sedan_Body": 9676,
+   "Sedan_Body": 9312,
    "Sedan_Glass": 640,
    "Sedan_Lights": 4200,
-   "Sedan_Trim": 14392,
+   "Sedan_Trim": 14720,
    "Sedan_Wheel1": 4916,
    "Sedan_Wheel2": 4916,
    "Sedan_Wheel3": 4916,
    "Sedan_Wheel4": 4916
   },
-  "tris": 48572,
+  "tris": 48536,
   "size": [
    7.68,
    15.81,
@@ -19,35 +19,35 @@
  },
  "SportsCar": {
   "objects": {
-   "SportsCar_Body": 9604,
+   "SportsCar_Body": 9240,
    "SportsCar_Glass": 640,
    "SportsCar_Lights": 3172,
-   "SportsCar_Trim": 13550,
+   "SportsCar_Trim": 13834,
    "SportsCar_Wheel1": 5216,
    "SportsCar_Wheel2": 5216,
    "SportsCar_Wheel3": 5216,
    "SportsCar_Wheel4": 5216
   },
-  "tris": 47830,
+  "tris": 47750,
   "size": [
    7.61,
    16.41,
-   4.26
+   4.27
   ]
  },
  "PoliceCar": {
   "objects": {
-   "PoliceCar_Body": 12416,
+   "PoliceCar_Body": 12052,
    "PoliceCar_Glass": 640,
    "PoliceCar_Lights": 4684,
-   "PoliceCar_Trim": 18482,
-   "PoliceCar_Trim2": 918,
+   "PoliceCar_Trim": 18468,
+   "PoliceCar_Trim2": 1256,
    "PoliceCar_Wheel1": 5716,
    "PoliceCar_Wheel2": 5716,
    "PoliceCar_Wheel3": 5716,
    "PoliceCar_Wheel4": 5716
   },
-  "tris": 60004,
+  "tris": 59964,
   "size": [
    7.68,
    16.59,
@@ -56,34 +56,34 @@
  },
  "MuscleCar": {
   "objects": {
-   "MuscleCar_Body": 11144,
+   "MuscleCar_Body": 10756,
    "MuscleCar_Glass": 640,
    "MuscleCar_Lights": 4008,
-   "MuscleCar_Trim": 12810,
+   "MuscleCar_Trim": 13142,
    "MuscleCar_Wheel1": 5588,
    "MuscleCar_Wheel2": 5588,
    "MuscleCar_Wheel3": 5588,
    "MuscleCar_Wheel4": 5588
   },
-  "tris": 50954,
+  "tris": 50898,
   "size": [
    8.01,
    17.81,
-   5.03
+   5.09
   ]
  },
  "PickupTruck": {
   "objects": {
-   "PickupTruck_Body": 10468,
+   "PickupTruck_Body": 10104,
    "PickupTruck_Glass": 512,
    "PickupTruck_Lights": 2984,
-   "PickupTruck_Trim": 14220,
+   "PickupTruck_Trim": 14054,
    "PickupTruck_Wheel1": 9422,
    "PickupTruck_Wheel2": 9422,
    "PickupTruck_Wheel3": 9422,
    "PickupTruck_Wheel4": 9422
   },
-  "tris": 65872,
+  "tris": 65342,
   "size": [
    8.25,
    19.67,
@@ -92,17 +92,17 @@
  },
  "MonsterTruck": {
   "objects": {
-   "MonsterTruck_Body": 10468,
-   "MonsterTruck_Glass": 512,
+   "MonsterTruck_Body": 10104,
+   "MonsterTruck_Glass": 264,
    "MonsterTruck_Lights": 3308,
-   "MonsterTruck_Trim": 18464,
-   "MonsterTruck_Trim2": 4040,
-   "MonsterTruck_Wheel1": 10104,
-   "MonsterTruck_Wheel2": 10104,
-   "MonsterTruck_Wheel3": 10104,
-   "MonsterTruck_Wheel4": 10104
+   "MonsterTruck_Trim": 18476,
+   "MonsterTruck_Trim2": 7844,
+   "MonsterTruck_Wheel1": 11256,
+   "MonsterTruck_Wheel2": 11256,
+   "MonsterTruck_Wheel3": 11256,
+   "MonsterTruck_Wheel4": 11256
   },
-  "tris": 77208,
+  "tris": 85020,
   "size": [
    14.5,
    19.67,
