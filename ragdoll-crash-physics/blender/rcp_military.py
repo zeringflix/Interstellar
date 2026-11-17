@@ -90,6 +90,20 @@ def register(builder, spec, car_dims):
                 G["Trim"].append(box("slat", (3.5, 0.14, 0.12), (gx, -9.6 + k * 0.36, 4.05), dark, bev=0.02, rot=(math.radians(25), 0, 0), segs=1))
         G["Trim"].append(cyl("drvhatch", 1.0, 0.14, (-2.2, 5.0, 4.0), dark, "Z", segs=24))
         G["Trim"].append(box("periscope", (0.7, 0.3, 0.26), (-2.2, 6.2, 4.05), blk, bev=0.05))
+
+        def u_handle(x, y, z, w=0.6, h=0.2, along="X"):
+            if along == "X":
+                pts = [(x - w / 2, y, z), (x - w / 2, y, z + h), (x + w / 2, y, z + h), (x + w / 2, y, z)]
+            else:
+                pts = [(x, y - w / 2, z), (x, y - w / 2, z + h), (x, y + w / 2, z + h), (x, y + w / 2, z)]
+            return tube("uhandle", pts, 0.045, M.STEEL(), segs=6, smooth=3)
+        # hatch hardware: hinge barrel on the rear edge, grab handle on the lid
+        G["Trim"].append(tube("drvhinge", [(-2.9, 4.05, 4.12), (-1.5, 4.05, 4.12)], 0.11, dark, segs=10))
+        G["Trim"].append(u_handle(-2.2, 5.5, 4.07))
+        # engine deck access panels: a lifting handle at each end of every grille panel
+        for gx in (-2.4, 2.4):
+            for gy in (-9.95, -5.25):
+                G["Trim"].append(u_handle(gx, gy, 4.02, 0.8, 0.18))
         glacis = math.atan2(3.95 - 2.7, 12.6 - 6.4)
         for k in range(5):
             G["Trim"].append(box("sparelink", (1.0, 0.5, 0.14), (1.2 + k * 1.05 - 2.6, 9.5, 3.42), M.STEEL(), bev=0.03, rot=(-glacis, 0, 0)))
@@ -128,6 +142,14 @@ def register(builder, spec, car_dims):
             T.append(box("vision", (0.42, 0.14, 0.2), (cx + 1.1 * math.cos(a), cy + 1.1 * math.sin(a), 6.85), blk, bev=0.03, rot=(0, 0, a + math.pi / 2)))
         T.append(cyl("cmdhatch", 0.9, 0.1, (cx, cy - 0.85, 7.6), dark, "Y", segs=24))
         T.append(cyl("ldrhatch", 0.85, 0.1, (1.6, -1.9, 6.65), dark, "Z", segs=24))
+        T.append(tube("ldrhinge", [(1.0, -2.75, 6.75), (2.2, -2.75, 6.75)], 0.1, dark, segs=10))
+        T.append(tube("ldrhandle", [(1.3, -1.5, 6.7), (1.3, -1.5, 6.88), (1.9, -1.5, 6.88), (1.9, -1.5, 6.7)], 0.045, M.STEEL(), segs=6, smooth=3))
+        T.append(tube("cmdhinge", [(cx - 0.6, cy - 0.9, 7.12), (cx + 0.6, cy - 0.9, 7.12)], 0.1, dark, segs=10))
+        # lifting eyes on the turret roof and grab rails along the turret sides
+        for ex, ey in ((-2.6, 2.2), (2.6, 2.2), (-2.8, -3.6), (2.8, -3.6)):
+            T.append(lathe("lifteye", [(0.12, -0.05), (0.22, -0.05), (0.22, 0.05), (0.12, 0.05)], M.STEEL(), segs=16, axis="X", loc=(ex, ey, 6.75), close=True))
+        for s_ in (-1, 1):
+            T.append(tube("turretrail", [(s_ * 3.55, 1.6, 5.2), (s_ * 3.85, 1.4, 5.6), (s_ * 3.85, -2.6, 5.6), (s_ * 3.55, -2.8, 5.2)], 0.05, M.STEEL(), segs=6, smooth=3))
         T.append(tube("mgmount", [(cx + 0.9, cy + 0.6, 7.1), (cx + 0.9, cy + 0.6, 7.75)], 0.08, M.STEEL(), segs=8))
         T.append(box("mgbody", (0.22, 1.4, 0.3), (cx + 0.9, cy + 0.9, 7.85), blk, bev=0.05))
         T.append(cyl("mgbarrel", 0.05, 1.8, (cx + 0.9, cy + 2.4, 7.9), blk, "Y", segs=8))

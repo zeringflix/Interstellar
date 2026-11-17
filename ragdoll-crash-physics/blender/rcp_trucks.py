@@ -84,7 +84,19 @@ def register(builder, spec, car_dims):
             G["Lights"].append(P("sidemarker", side, (17.0, 2.5, 17.35, 2.7), M.AMBER(), 0.02))
             for yy in (-12.5, -6, 0.5, 7):
                 G["Lights"].append(P("marker", side, (yy, c + 0.5, yy + 0.3, c + 0.62), M.AMBER(), 0.02))
-            G["Trim"].append(P("fuelflap", side, (-9.0, 1.6, -8.1, 2.3), blk, 0.008, res=0.1)) if side == "L" else None
+            # lower body service panels between the axles, each with a flush latch; skip the kerb-side door
+            for y0, y1 in ((-8.0, -5.4), (-5.1, -2.0), (2.1, 5.2), (5.5, 9.0)):
+                if side == "R" and y1 > -1.8 and y0 < 1.9:
+                    continue
+                G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(y0, c + 0.42, y1, 2.25, 0.12), blk, radius=0.02))
+                G["Trim"] += C.latch(surf, side, (y0 + y1) / 2, 2.0, M.CHROME())
+            if side == "L":  # fuel flap and the engine bay radiator grille at the rear corner
+                G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(-9.4, 1.55, -8.5, 2.3, 0.1), blk, radius=0.02))
+                G["Trim"].append(P("radgrille", side, (-16.6, 2.0, -13.6, 4.2), blk, 0.012, res=0.1, round_r=0.12))
+                for k in range(8):
+                    G["Trim"].append(P("radslat", side, (-16.5, 2.12 + k * 0.26, -13.7, 2.2 + k * 0.26), M.STEEL(), 0.03, thickness=0.02))
+            for yy in (9.0, -8.1):  # rubber mud flaps behind each axle
+                G["Trim"].append(box("mudflap", (0.9, 0.08, 1.3), (sg * 3.95, yy, 1.05), M.RUBBER(), bev=0.02))
             # drop-arm mirrors
             loc, _ = surf.point(side, 16.0, 6.9)
             G["Trim"].append(tube("mirrorarm", [(loc.x, 17.2, 7.3), (loc.x + sg * 0.9, 18.0, 7.2), (loc.x + sg * 1.0, 18.3, 6.2)], 0.07, blk, segs=8, smooth=4))
@@ -96,6 +108,9 @@ def register(builder, spec, car_dims):
                 a = y0 + 0.08 + k * 1.6
                 G["Body"].append(P("leaf", "R", (a, c + 0.35, a + 1.5, roof - 0.65), white, 0.03, res=0.2))
                 G["Glass"].append(P("leafglass", "R", (a + 0.12, c + 1.0, a + 1.38, roof - 0.85), M.GLASS(), 0.045, res=0.15, round_r=0.1))
+            mid = y0 + 1.64  # rubber centre seal where the two leaves meet
+            G["Trim"].append(C.groove_path(surf, "R", [(mid, c + 0.35 + (roof - 1.0 - c) * k / 10) for k in range(11)], M.RUBBER(), radius=0.05, sink=0.03))
+            G["Trim"].append(C.groove_path(surf, "R", [(y0 - 0.05 + 3.3 * k / 12, roof - 0.5) for k in range(13)], M.STEEL(), radius=0.06, sink=0.05))  # door rail
         # front: sign, lamps, wipers, bumper, bike-rack bar
         G["Trim"].append(box("signbox", (6.6, 0.25, 1.0), (0, 17.25, roof - 0.52), blk, bev=0.05, rot=(math.radians(-14), 0, 0)))
         G["Lights"].append(M.text("dest", "42  CRASH TEST DEPOT", 0.52, (0, 17.4, roof - 0.55), (math.pi / 2 + math.radians(14), 0, math.pi), led, extrude=0.01))
@@ -193,10 +208,13 @@ def register(builder, spec, car_dims):
         G["Trim"].append(M.text("badge", "RCP", 0.55, (0, 13.22, 6.05), (math.pi / 2, 0, math.pi), M.CHROME(), extrude=0.03))
         for side in ("L", "R"):
             sgn = 1 if side == "R" else -1
-            G["Trim"].append(P("doorseam", side, (6.9, 3.5, 6.96, 6.55), M.DARK(), 0.008))
-            G["Trim"].append(P("doorseam2", side, (9.5, 3.5, 9.56, 6.55), M.DARK(), 0.008))
-            loc, nrm = surf.point(side, 7.5, 6.0)
-            G["Trim"].append(box("handle", (0.08, 0.6, 0.14), loc + nrm * 0.04, M.CHROME(), bev=0.03))
+            # cab door: the cut runs round the whole door including its window; hinged at the front,
+            # pull handle under the window near the rear edge, grab handle on the A-pillar for climbing in
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(6.8, 3.45, 9.6, 8.85, 0.35), M.DARK()))
+            G["Trim"].append(P("pocket", side, (7.0, 6.05, 7.95, 6.42), M.mat("Pocket", "#121315", rough=0.35), 0.01, res=0.04, round_r=0.1))
+            G["Trim"].append(C.pull_handle(surf, side, 7.48, 6.22, 0.8, M.CHROME()))
+            G["Trim"] += C.hinges(surf, side, 9.5, (4.4, 7.6), M.CHROME())
+            G["Trim"].append(C.grab_handle(surf, side, 9.85, 4.2, 7.4, M.CHROME()))
             # wide front wings over the steer tyres
             wing = loft("wing", [[(sgn * 3.4, 12.6, 3.4), (sgn * 5.1, 12.6, 3.4), (sgn * 5.1, 12.6, 3.55), (sgn * 3.4, 12.6, 3.55)],
                                  [(sgn * 3.4, 11.6, 5.3), (sgn * 5.1, 11.6, 5.3), (sgn * 5.1, 11.6, 5.45), (sgn * 3.4, 11.6, 5.45)],
@@ -314,19 +332,17 @@ def register(builder, spec, car_dims):
             pane(side, (-0.2, 5.75, 1.3, 6.75))
             pane(side, (-4.6, 5.9, -3.0, 6.7))
             pane(side, (-7.9, 5.9, -6.3, 6.7))
-            for yy in (-2.3, 1.75):
-                G["Trim"].append(P("doorseam", side, (yy, 2.9, yy + 0.05, 7.2), dark, 0.01))
-            G["Trim"].append(P("doortop", side, (-2.3, 7.15, 1.8, 7.2), dark, 0.01))
-            loc, nrm = surf.point(side, -1.7, 4.9)
-            G["Trim"].append(box("handle", (0.12, 0.7, 0.16), loc + nrm * 0.06, M.STEEL(), bev=0.03))
-            for yy in (1.45,):  # hinges on the door's FRONT edge (it opens forward-hinged, like a car)
-                for zz in (3.3, 6.9):
-                    loc, nrm = surf.point(side, yy, zz)
-                    G["Trim"].append(box("hinge", (0.14, 0.2, 0.5), loc + nrm * 0.05, dark, bev=0.03))
-            # stowage bins + side step + angular wings over the wheels
-            G["Body"].append(box("bin", (0.9, 4.4, 1.5), (sgn * 4.1, -1.0, 3.3), tan, bev=0.06))
-            G["Trim"].append(box("binlid", (0.95, 4.3, 0.06), (sgn * 4.1, -1.0, 4.08), dark, bev=0.02))
-            G["Trim"].append(box("step", (0.9, 3.0, 0.12), (sgn * 4.2, -1.0, 2.2), M.STEEL(), bev=0.02))
+            # two heavy armoured doors per side (crew + troop), each hinged on its FRONT edge with big
+            # external hinges, a recessed pull handle near the rear edge and a step underneath
+            for y0, y1 in ((-2.3, 1.75), (-6.6, -2.65)):
+                G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(y0, 2.9, y1, 7.2, 0.2), dark, radius=0.03))
+                G["Trim"] += C.hinges(surf, side, y1 - 0.15, (3.4, 6.7), dark, length=0.6, radius=0.1)
+                G["Trim"].append(P("pocket", side, (y0 + 0.2, 4.7, y0 + 1.1, 5.1), M.mat("Pocket", "#121315", rough=0.35), 0.01, res=0.04, round_r=0.1))
+                G["Trim"].append(C.pull_handle(surf, side, y0 + 0.65, 4.9, 0.7, M.STEEL()))
+                G["Trim"].append(box("step", (0.9, 2.6, 0.12), (sgn * 4.2, (y0 + y1) / 2, 2.2), M.STEEL(), bev=0.02))
+            # stowage bins behind the doors + angular wings over the wheels
+            G["Body"].append(box("bin", (0.9, 2.2, 1.5), (sgn * 4.1, -8.4, 3.3), tan, bev=0.06))
+            G["Trim"].append(box("binlid", (0.95, 2.1, 0.06), (sgn * 4.1, -8.4, 4.08), dark, bev=0.02))
             for yc in (6.5, -6.5):
                 G["Body"].append(loft("wing", [[(sgn * 3.3, yc + 2.9, 3.6), (sgn * 5.5, yc + 2.9, 3.6), (sgn * 5.5, yc + 2.9, 3.75), (sgn * 3.3, yc + 2.9, 3.75)],
                                                 [(sgn * 3.3, yc + 1.7, 4.75), (sgn * 5.5, yc + 1.7, 4.75), (sgn * 5.5, yc + 1.7, 4.9), (sgn * 3.3, yc + 1.7, 4.9)],
@@ -361,6 +377,9 @@ def register(builder, spec, car_dims):
         G["Trim"].append(cyl("snorkelcap", 0.32, 0.4, (3.7, 3.0, 8.5), dark, "Z", segs=14))
         # rear: door, ladder, spare wheel, jerry cans
         G["Trim"].append(P("reardoor", "B", (-1.6, 3.0, 1.6, 7.0), dark, 0.012, res=0.1))
+        G["Trim"] += C.hinges(surf, "B", -1.45, (3.6, 6.4), dark, length=0.6, radius=0.1)
+        G["Trim"] += C.latch(surf, "B", 1.1, 4.9, M.STEEL(), w=0.5, h=0.16)
+        G["Trim"].append(C.grab_handle(surf, "B", 1.9, 3.4, 6.2, M.STEEL()))
         G["Body"].append(P("reardoorpanel", "B", (-1.52, 3.08, 1.52, 6.92), tan, 0.03, res=0.2))
         fr = P("rearframe", "B", (-0.8, 5.7, 0.8, 6.6), dark, 0.05, res=0.1, thickness=0.08)
         G["Trim"].append(fr)

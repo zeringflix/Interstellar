@@ -99,8 +99,12 @@ def register(builder, spec, car_dims):
             sg = 1 if side == "R" else -1
             G["Body"].append(P("cheat", side, (-13.5, cz - 0.15, 11.0, cz + 0.2), red, 0.01, res=0.2))
             G["Body"].append(P("cheat2", side, (-12.0, cz - 0.42, 9.0, cz - 0.3), red, 0.01, res=0.2))
-            G["Trim"].append(P("doorseam", side, (5.2, cz - 1.0, 5.25, cz + 0.55), M.DARK(), 0.008, res=0.1))
-            G["Trim"].append(P("doorseam2", side, (1.5, cz - 1.0, 1.55, cz + 0.55), M.DARK(), 0.008, res=0.1))
+            # cabin door: the cut runs round the door AND its window (light-aircraft doors carry the
+            # window), hinged on the front edge; a small baggage door further back
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(1.55, cz - 1.05, 5.15, cz + 2.15, 0.45), M.DARK(), radius=0.02))
+            G["Trim"] += C.hinges(surf, side, 5.05, (cz - 0.5, cz + 1.3), M.CHROME(), length=0.3, radius=0.045)
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(-1.7, cz - 0.85, -0.5, cz + 0.25, 0.15), M.DARK(), radius=0.018))
+            G["Trim"] += C.latch(surf, side, -1.1, cz + 0.05, M.CHROME(), w=0.22, h=0.08)
             G["Trim"].append(P("cowlseam", side, (8.35, cz - 1.4, 8.4, cz + 1.4), M.DARK(), 0.008, res=0.1))
             loc, _ = surf.point(side, -6.5, cz + 0.75)
             G["Trim"].append(M.text("reg", "N172RC", 0.62, (loc.x + sg * 0.03, -6.5, cz + 0.85), (math.pi / 2, 0, sg * math.pi / 2), M.matte("#14161a", 0.5)))
@@ -192,10 +196,14 @@ def register(builder, spec, car_dims):
                 yy = 8.0 - k * 2.6
                 G["Glass"].append(P("porthole", side, (yy - 0.42, cz + 1.5, yy + 0.42, cz + 2.34), M.GLASS(), 0.03, res=0.07, round_r=0.42))
                 G["Trim"].append(P("portring", side, (yy - 0.52, cz + 1.4, yy + 0.52, cz + 2.44), M.DARK(), 0.015, res=0.07, round_r=0.52))
-            G["Trim"].append(P("door", side, (10.2, cz - 2.6, 10.26, cz + 1.2), M.DARK(), 0.01, res=0.15))
-            G["Trim"].append(P("door2", side, (12.0, cz - 2.6, 12.06, cz + 1.2), M.DARK(), 0.01, res=0.15))
-            G["Trim"].append(P("paradoor", side, (-8.4, cz - 2.8, -8.34, cz + 0.6), M.DARK(), 0.01, res=0.15))
-            G["Trim"].append(P("paradoor2", side, (-5.8, cz - 2.8, -5.74, cz + 0.6), M.DARK(), 0.01, res=0.15))
+            # crew entry door (forward, hinged at its front edge) and the paratroop door aft
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(10.2, cz - 2.6, 12.06, cz + 1.2, 0.35), M.DARK(), radius=0.03))
+            G["Trim"] += C.hinges(surf, side, 11.95, (cz - 1.8, cz + 0.4), M.STEEL(), length=0.4, radius=0.06)
+            G["Trim"].append(P("crewpocket", side, (10.35, cz - 1.0, 10.95, cz - 0.7), M.mat("Pocket", "#121315", rough=0.35), 0.01, res=0.04, round_r=0.08))
+            G["Trim"].append(C.pull_handle(surf, side, 10.65, cz - 0.85, 0.5, M.STEEL(), flush=True))
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(-8.4, cz - 2.8, -5.74, cz + 0.6, 0.35), M.DARK(), radius=0.03))
+            G["Trim"] += C.latch(surf, side, -7.07, cz - 1.7, M.STEEL(), w=0.4, h=0.14)
+            G["Trim"].append(C.grab_handle(surf, side, -5.5, cz - 2.4, cz - 0.4, M.STEEL(), standoff=0.12))
             loc, _ = surf.point(side, 0.5, cz - 1.5)
             G["Trim"].append(M.text("title", "RCP AIR CARGO", 1.0, (loc.x + sg * 0.04, 0.5, cz - 1.5), (math.pi / 2, 0, sg * math.pi / 2), M.matte("#1f3f7a", 0.5)))
             # main gear sponson
@@ -280,11 +288,15 @@ def register(builder, spec, car_dims):
         for side in ("L", "R"):
             sg = 1 if side == "R" else -1
             G["Body"].append(P("stripe", side, (-5.0, 2.55, 3.4, 2.95), white, 0.012, res=0.15))
-            for yy in (4.25, 1.4, -1.55):
-                G["Trim"].append(P("doorseam", side, (yy, 1.95, yy + 0.05, 5.9), M.DARK(), 0.01, res=0.1))
-            for yy in (2.0, -0.9):
-                loc, nrm = surf.point(side, yy, 3.5)
-                G["Trim"].append(box("handle", (0.08, 0.5, 0.12), loc + nrm * 0.04, M.CHROME(), bev=0.03))
+            # crew door: hinged at the front, handle near the rear edge. Cabin door behind it SLIDES
+            # back on top and bottom rails, so its handle is at the front edge.
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(1.45, 1.95, 4.25, 5.9, 0.4), M.DARK(), radius=0.022))
+            G["Trim"] += C.hinges(surf, side, 4.1, (2.7, 5.1), M.CHROME(), length=0.35, radius=0.05)
+            G["Trim"].append(C.pull_handle(surf, side, 1.95, 3.5, 0.5, M.CHROME()))
+            G["Trim"].append(C.groove_path(surf, side, C.rounded_rect(-1.55, 1.95, 1.4, 5.9, 0.3), M.DARK(), radius=0.022))
+            G["Trim"].append(C.pull_handle(surf, side, 1.0, 3.5, 0.5, M.CHROME()))
+            for zr in (5.95, 1.92):
+                G["Trim"].append(C.groove_path(surf, side, [(1.3 - 5.4 * k / 16, zr) for k in range(17)], M.STEEL(), radius=0.05, sink=0.05))
             loc, _ = surf.point(side, -3.3, 4.2)
             G["Trim"].append(M.text("reg", "N206RC", 0.5, (loc.x + sg * 0.04, -3.3, 4.2), (math.pi / 2, 0, sg * math.pi / 2), M.matte("#f4f4f4", 0.5)))
             G["Lights"].append(box("nav", (0.2, 0.4, 0.18), (sg * 3.05, -1.0, 3.2), M.mat("NavR" if sg < 0 else "NavG", "#e01616" if sg < 0 else "#19c23a", rough=0.2, emit=1.0), bev=0.06))

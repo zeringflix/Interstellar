@@ -174,6 +174,17 @@ def register(builder, spec, car_dims):
         G["Glass"] += [box("gF", (5.4, 0.06, 3.0), (0, -1.4, 6.6), glass, bev=0.01), box("gR", (5.4, 0.06, 3.0), (0, -5.8, 6.6), glass, bev=0.01),
                        box("gL", (0.06, 4.0, 3.0), (-2.9, -3.6, 6.6), glass, bev=0.01), box("gRt", (0.06, 4.0, 3.0), (2.9, -3.6, 6.6), glass, bev=0.01)]
         G["Trim"] += [box("seat", (1.6, 1.4, 0.35), (0, -4.0, 5.5), M.SEAT(), bev=0.1), box("seatback", (1.6, 0.3, 1.7), (0, -4.7, 6.3), M.SEAT(), bev=0.1)]
+        # cab doors: a framed glass door on each side, hinged on the front post, handle at the rear
+        for sx in (-1, 1):
+            x = sx * 2.97
+            frame = [(x, -5.55, 5.1), (x, -5.55, 8.15), (x, -1.65, 8.15), (x, -1.65, 5.1), (x, -5.55, 5.1)]
+            G["Trim"].append(tube("doorframe", frame, 0.07, blk, segs=6))
+            G["Trim"].append(tube("doormid", [(x, -5.55, 6.4), (x, -1.65, 6.4)], 0.05, blk, segs=6))
+            for zz in (5.6, 7.6):
+                G["Trim"].append(tube("doorhinge", [(x + sx * 0.06, -1.6, zz - 0.25), (x + sx * 0.06, -1.6, zz + 0.25)], 0.07, blk, segs=8))
+            G["Trim"].append(tube("doorhandle", [(x, -5.25, 6.05), (x + sx * 0.14, -5.25, 6.05), (x + sx * 0.14, -4.65, 6.05), (x, -4.65, 6.05)], 0.04, M.CHROME(), segs=6, smooth=3))
+            for zz in (2.6, 3.4, 4.2):  # climbing steps up the track frame to the cab door
+                G["Trim"].append(box("cabstep", (0.6, 1.2, 0.08), (sx * 6.4, -3.2, zz), M.STEEL(), bev=0.02))
         for sx in (-1.2, 1.2):
             G["Trim"].append(tube("lever", [(sx, -2.6, 5.0), (sx, -2.9, 6.2)], 0.05, blk, segs=6))
             G["Trim"].append(cyl("knob", 0.11, 0.2, (sx, -2.9, 6.3), blk, "Z", segs=10))
