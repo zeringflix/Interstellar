@@ -40,6 +40,17 @@ def spec(key):
 
 
 # ------------------------------------------------------------------ CARS
+def trim_round_arch(ob, axle_y, arch_z, radius):
+    """Delete the faces of a projected side patch that fall inside a wheel arch (plus its gap)."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    inside = [f for f in bm.faces if math.hypot(f.calc_center_median().y - axle_y, f.calc_center_median().z - arch_z) < radius]
+    bmesh.ops.delete(bm, geom=inside, context="FACES")
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
 def car_dims(key, **over):
     s = spec(key)
     w = s["wheels"]
@@ -50,10 +61,25 @@ def car_dims(key, **over):
     return p
 
 
+# 4-door, 4-seat sedans (sedan, police car), laid out from a real midsize sedan (2024-25 Camry /
+# Accord: 111 in wheelbase, ~193 in long, ~57 in high; rear headroom only ~0.7 in less than the
+# front, so the roof stays high over the back seat). Scaled by the wheelbase (1 unit ~ 12 in):
+#  - front door ~40 in (0.36 WB) from just behind the front arch to the B-pillar; rear door ~38 in at
+#    the beltline, running back over the rear arch (the C-pillar base sits over the rear wheel arch)
+#    and curving round it below; front door longer than the rear (doors list: front, B seam, rear);
+#  - slim B-pillar (~4 in), centred about 0.55 WB behind the front axle, so the front seat sits under it;
+#  - each side window fills the top of its door: the front one runs forward under the A-pillar, the
+#    rear one runs back to a raked rear edge that follows the C-pillar (c_slant: beltline -> roof);
+#  - roof held full height to above the rear headrests (roof_hold), then falls to the rear screen;
+#  - trunk lid ~31 in, rear screen raked ~55 degrees.
+FOUR_DOOR = dict(b_pillar=-0.5, b_half=0.17, roof_w=0.78, roof_drop=0.3, seat_rows=[0.85, -2.55])
+
+
 @builder("Sedan")
 def sedan():
-    p = car_dims("Sedan", L=15.6, W=7.0, color="#2f6fd0", clear=0.75, belt=3.0, roof=4.8, hood_front=2.72, hood_cowl=3.08,
-                 cowl=2.9, ws_top=0.9, roof_rear=-2.9, deck=-4.9, trunk=3.18, b_pillar=-0.9, arch=1.14)
+    p = car_dims("Sedan", L=15.6, W=7.0, color="#2f6fd0", clear=0.75, belt=3.0, roof=4.85, hood_front=2.72, hood_cowl=3.08,
+                 **FOUR_DOOR, cowl=2.9, ws_top=0.75, roof_hold=-2.3, roof_rear=-3.5, deck=-5.25, trunk=3.2,
+                 doors=[2.95, -0.33, -3.6], c_slant=(-3.45, -2.35), arch=1.14)
     return C.build_car(p, spec("Sedan")["wheels"])
 
 
@@ -86,28 +112,36 @@ def sports():
 
 @builder("PoliceCar")
 def police():
-    p = car_dims("PoliceCar", L=16.0, W=7.0, color="#f2f3f5", clear=0.78, belt=3.02, roof=4.82, hood_front=2.75, hood_cowl=3.1,
-                 cowl=3.0, ws_top=1.0, roof_rear=-2.9, deck=-5.0, trunk=3.2, b_pillar=-0.9, arch=1.14, wheel_style="steel",
+    p = car_dims("PoliceCar", L=16.0, W=7.0, color="#f2f3f5", clear=0.78, belt=3.02, roof=4.85, hood_front=2.75, hood_cowl=3.1,
+                 **FOUR_DOOR, cowl=3.0, ws_top=0.85, roof_hold=-2.35, roof_rear=-3.55, deck=-5.35, trunk=3.22,
+                 doors=[3.05, -0.33, -3.65], c_slant=(-3.5, -2.4), arch=1.14, wheel_style="steel",
                  rim_color="#1c1d20", chrome=False, antenna=False, black_handles=True)
 
     def extras(p, surf, paint, G):
         hw = p["W"] / 2
         black = M.paint("#101114")
         for side in ("L", "R"):  # black doors + lettering
-            G["Body"].append(surf.project("livery", side, (-2.85, 1.1, 2.6, 3.0), black, 0.008, res=0.12))
-            loc, nrm = surf.point(side, -0.1, 2.1)
+            # black doors: the livery covers both doors exactly (front edge to the rear door's edge,
+            # sill to beltline) and is trimmed round the rear wheel arch like the door itself
+            dz = p["doors"]
+            liv = surf.project("livery", side, (dz[-1], 1.1, dz[0], p["belt"]), black, 0.008, res=0.08)
+            trim_round_arch(liv, p["axle_r"], p["wheel_r"] * 0.95, p["wheel_r"] * p["arch"] + 0.14)
+            G["Body"].append(liv)
+            yl = (dz[0] + dz[-1]) / 2
+            loc, nrm = surf.point(side, yl, 2.1)
             s = 1 if side == "R" else -1
-            G["Trim"].append(M.text("police", "POLICE", 0.62, (loc.x + s * 0.03, -0.1, 2.1), (math.pi / 2, 0, s * math.pi / 2), M.matte("#f4f4f4", 0.5)))
+            G["Trim"].append(M.text("police", "POLICE", 0.62, (loc.x + s * 0.03, yl, 2.1), (math.pi / 2, 0, s * math.pi / 2), M.matte("#f4f4f4", 0.5)))
             loc, _ = surf.point(side, -6.9, 2.5)
             if loc is not None:
                 G["Trim"].append(M.text("unit", "911", 0.42, (loc.x + s * 0.03, -6.9, 2.5), (math.pi / 2, 0, s * math.pi / 2), M.matte("#101114", 0.5)))
-        top, _ = surf.point("T", 0, -0.9)
+        yb = p["b_pillar"]   # the light bar sits on the roof above the B-pillars
+        top, _ = surf.point("T", 0, yb)
         z = top.z
-        G["Trim"].append(C.box("barbase", (4.4, 0.9, 0.16), (0, -0.9, z + 0.12), M.DARK(), bev=0.05))
+        G["Trim"].append(C.box("barbase", (4.4, 0.9, 0.16), (0, yb, z + 0.12), M.DARK(), bev=0.05))
         for s, col in ((-1, "#e01616"), (1, "#1b4fe0")):
-            G["Lights"].append(C.box("beacon", (1.9, 0.78, 0.36), (s * 1.12, -0.9, z + 0.36), M.mat("Beacon", col, rough=0.15, emit=1.2), bev=0.12, segs=3))
-            G["Trim"].append(C.box("foot", (0.16, 0.5, 0.2), (s * 1.9, -0.9, z + 0.06), M.DARK(), bev=0.03))
-        G["Lights"].append(C.box("beaconmid", (0.3, 0.7, 0.3), (0, -0.9, z + 0.33), M.mat("BeaconW", "#f5f5f5", rough=0.2, emit=0.4), bev=0.08))
+            G["Lights"].append(C.box("beacon", (1.9, 0.78, 0.36), (s * 1.12, yb, z + 0.36), M.mat("Beacon", col, rough=0.15, emit=1.2), bev=0.12, segs=3))
+            G["Trim"].append(C.box("foot", (0.16, 0.5, 0.2), (s * 1.9, yb, z + 0.06), M.DARK(), bev=0.03))
+        G["Lights"].append(C.box("beaconmid", (0.3, 0.7, 0.3), (0, yb, z + 0.33), M.mat("BeaconW", "#f5f5f5", rough=0.2, emit=0.4), bev=0.08))
         # push bar
         y = p["L"] / 2 + 0.28
         for s in (-1, 1):

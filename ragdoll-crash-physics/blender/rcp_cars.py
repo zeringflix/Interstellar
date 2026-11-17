@@ -66,12 +66,15 @@ def stations(p):
         t = (ya - ydk) / (yrr - ydk)
         add(ya, 1.0, c, belt, tz + 0.04 + (roof - 0.1 - tz) * t, 0.84 + (rw_ - 0.84) * t, "rw", flare=fl)
     cp = p.get("c_pillar", 0.0)    # regular-cab pickups: a solid rear pillar behind the door glass
-    add(yrr, 1.0, c, belt, roof - 0.06, rw_, "pillar" if cp else "glass", hard=True)   # rear of the roof
+    add(yrr, 1.0, c, belt, roof - p.get("roof_drop", 0.06), rw_, "pillar" if cp else "glass", hard=True)   # rear of the roof
     if cp:
         add(yrr + cp, 1.0, c, belt, roof - 0.06, rw_, "glass", hard=True)
+    if p.get("roof_hold") is not None:   # 4-door sedans: the roof stays high over the back seat, then falls
+        add(p["roof_hold"], 1.0, c, belt, roof - 0.02, rw_, "glass")
     if not p.get("single_window"):  # 4-door cars and coupes: B-pillar between the side windows
-        add(yb - 0.22, 1.0, c, belt, roof, rw_, "pillar")
-        add(yb + 0.22, 1.0, c, belt, roof, rw_, "glass")
+        bh = p.get("b_half", 0.22)
+        add(yb - bh, 1.0, c, belt, roof, rw_, "pillar")
+        add(yb + bh, 1.0, c, belt, roof, rw_, "glass")
     add(ywt, 1.0, c, belt, roof - 0.05, rw_, "ws", hard=True)      # header rail
     add(yc, 1.0, c, belt, hc + 0.05, 0.86, hard=True)               # cowl / base of the windscreen
     add(yc + 0.3, 1.0, c, hc - 0.04, hc, 0.86)
@@ -116,6 +119,8 @@ def body_shell(p, paint, extra_cut=None):
         M.crease_lengthwise(shell, rings, M.CORNER_POINTS)
         M.crease_rings(shell, rings, creases, M.GREENHOUSE_POINTS)
     M.subsurf(shell, p.get("subdiv", 2))
+    if p.get("c_slant"):
+        slant_c_pillar(shell, p["c_slant"], p["belt"], p["roof"])
     # wheel arches (squared-off on trucks)
     for y in (p["axle_f"], p["axle_r"]):
         M.cut_arch(shell, y, p["wheel_r"] * p.get("arch_z", 0.95), p["wheel_r"] * p.get("arch", 1.2), p["W"] * 0.3, p.get("arch_power", 2.0))
@@ -124,6 +129,30 @@ def body_shell(p, paint, extra_cut=None):
     for poly in shell.data.polygons:
         poly.use_smooth = True
     return shell
+
+
+def slant_c_pillar(shell, c_slant, belt, roof):
+    """Give a sedan's rear side window a raked rear edge. The window runs back to y_bot at the
+    beltline and to y_top at the roof rail, following the C-pillar as on a real sedan; the side
+    glass behind that line becomes body (the front of the C-pillar). The mesh is cut exactly along
+    the line first, so the edge is straight and the window trim follows it."""
+    import bmesh
+    y_bot, y_top = c_slant
+    d = Vector((0.0, y_top - y_bot, roof - belt)).normalized()
+    n = Vector((1.0, 0.0, 0.0)).cross(d)          # points rearward / downward of the line
+    co = Vector((0.0, y_bot, belt))
+    me = shell.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    side_glass = lambda f: f.material_index == 1 and abs(f.normal.x) > 0.45 and f.calc_center_median().y < y_top + 0.6
+    faces = [f for f in bm.faces if side_glass(f)]
+    geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
+    bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=n, dist=1e-5)
+    for f in bm.faces:
+        if side_glass(f) and (f.calc_center_median() - co).dot(n) > 0:
+            f.material_index = 0
+    bm.to_mesh(me)
+    bm.free()
 
 
 def split_glass(shell):
@@ -388,7 +417,13 @@ def details(surf, p, paint, G):
                         G["Trim"].append(cyl("keylock", 0.05, 0.05, loc + nrm * 0.02, M.CHROME(), "X", segs=16, bev=0.01))
         # B-pillar blackout between the side windows
         if p.get("b_blackout", True):
-            add("Trim", P("bpillar", side, (yb - 0.2, belt + 0.06, yb + 0.2, p["roof"] - 0.28), M.mat("PillarBlack", "#0d0e10", rough=0.25), 0.01, res=0.06))
+            bh = p.get("b_half", 0.22) - 0.02
+            add("Trim", P("bpillar", side, (yb - bh, belt + 0.06, yb + bh, p["roof"] - 0.28), M.mat("PillarBlack", "#0d0e10", rough=0.25), 0.01, res=0.06))
+        # sedans: the rear door's frame runs up the C-pillar, just behind the raked window edge
+        if p.get("c_slant"):
+            y_bot, y_top = p["c_slant"]
+            top_z = p["roof"] - 0.2
+            groove(side, [(doors[-1] + (y_top - y_bot) * k / 12 * (top_z - belt) / (p["roof"] - belt), belt - 0.03 + (top_z - belt + 0.03) * k / 12) for k in range(13)])
         # fuel filler door: right-hand side, just behind the rear wheel centre, at handle height
         if side == "R" and p.get("fuel", True):
             yf, zf, h = p["axle_r"] - 0.28 * r, belt - p.get("handle_drop", 0.2), 0.25
