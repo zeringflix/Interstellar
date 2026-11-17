@@ -359,7 +359,7 @@ def control(G, ck, style="sport", **kw):
     elif kind == "bars":
         add(G, "Steer", tbar("tbar", wheel_frame(ck.cpos, ck.tilt), ck.size))
         m = wheel_frame(ck.cpos, ck.tilt)
-        add(G, "Interior", [put(cyl("tbarpost", 0.08, 1.2, (0, 0, -0.65), M.STEEL(), "Z", segs=12, bev=0), m)])
+        add(G, "Interior", [put(cyl("tbarpost", 0.08, 1.2, (0, 0, -0.8), M.STEEL(), "Z", segs=12, bev=0), m)])
 
 
 # =============================================================================================
@@ -380,8 +380,16 @@ def car(p, G, body, style="sedan", dz=0.0, key=None):
     dash_m = CARBON() if sports else (DASH("#1f1d1b") if muscle else DASH())
     trim_m = LEATHER("#1c1a19") if sports else (LEATHER("#3a1512") if muscle else CLOTH("#2f2e2c"))
     # --- dashboard: a padded beam under the windscreen across the cab
-    prof = [(yc + 0.3, hc - 0.03), (yc - 0.3, hc + 0.0), (yc - 0.9, hc - 0.04), (yc - 1.08, hc - 0.26), (yc - 1.0, belt - 0.75),
-            (yc - 0.72, belt - 1.2), (yc - 0.3, floor + 0.65), (yc + 0.3, floor + 0.65)]
+    # The dash's rear face (back) sits a hand's width in front of the steering wheel: the rim never
+    # reaches further forward than its centre + r sin(tilt), so the wheel, its hub and the column
+    # stay clear of the dash, the cluster and its hood (before, the sedan's wheel sat in its cluster).
+    t_ = math.radians(ck.tilt) if hasattr(ck, "tilt") else 0.0
+    rim_front = ck.cpos.y + ck.size * math.sin(t_) if hasattr(ck, "cpos") else yc - 1.5
+    back = max(yc - 1.08, rim_front + 0.3)
+    D = yc - back
+    k = D / 1.08
+    prof = [(yc + 0.3, hc - 0.03), (yc - 0.3 * k, hc + 0.0), (yc - 0.9 * k, hc - 0.04), (back, hc - 0.26), (yc - 1.0 * k, belt - 0.75),
+            (yc - 0.72 * k, belt - 1.2), (yc - 0.3 * k, floor + 0.65), (yc + 0.3, floor + 0.65)]
     xs = [-inner, -inner + 0.25, inner - 0.25, inner]
     rings = []
     for x in xs:
@@ -394,48 +402,55 @@ def car(p, G, body, style="sedan", dz=0.0, key=None):
     I.append(box("defrost", (inner * 1.4, 0.35, 0.03), (0, yc - 0.1, hc + 0.0), M.DARK(), bev=0.01))
     # --- instrument cluster under a hood, read through the top half of the wheel
     ex = ck.eye.x
-    cy = yc - 0.95
+    cy = back + 0.06                       # dial faces just proud of the dash's rear face
+    if hasattr(ck, "cpos"):                # read through the gap between hub and rim top
+        u = Vector((0, math.sin(t_), math.cos(t_)))
+        gap = ck.cpos + u * (ck.size * 0.62)
+        f_ = ((cy - 0.12) - ck.eye.y) / max(0.1, gap.y - ck.eye.y)
+        zc = min(max(ck.eye.z + (gap.z - ck.eye.z) * f_, hc + 0.05), hc + 0.4)
+    else:
+        zc = hc + 0.12
     # cluster face behind the dials, with a shallow hood over them
-    I.append(box("clusterface", (1.1, 0.12, 0.5), (ex, cy + 0.02, hc + 0.12), M.DARK(), bev=0.04))
-    I.append(box("binnacle", (1.2, 0.55, 0.1), (ex, cy + 0.0, hc + 0.42), dash_m, bev=0.04, segs=2, rot=(math.radians(-8), 0, 0)))
+    I.append(box("clusterface", (1.1, 0.12, max(0.5, zc + 0.26 - (hc - 0.2))), (ex, cy + 0.02, (zc + 0.26 + hc - 0.2) / 2), M.DARK(), bev=0.04))
+    I.append(box("binnacle", (1.2, 0.5, 0.08), (ex, cy + 0.16, zc + 0.3), dash_m, bev=0.03, segs=2, rot=(math.radians(-8), 0, 0)))
     for s_ in (-1, 1):
-        I.append(box("binnacleside", (0.08, 0.5, 0.42), (ex + s_ * 0.58, cy + 0.02, hc + 0.2), dash_m, bev=0.03))
+        I.append(box("binnacleside", (0.08, 0.42, zc + 0.3 - (hc - 0.1)), (ex + s_ * 0.58, cy + 0.17, (zc + 0.3 + hc - 0.1) / 2), dash_m, bev=0.03))
     toward = Vector((ex, ck.eye.y, ck.eye.z))
     if sports:   # digital cluster
-        I += screen("cluster", facing((ex, cy - 0.12, hc + 0.12), toward), 0.85, 0.32, ui="#ff7a1a")
+        I += screen("cluster", facing((ex, cy - 0.06, zc), toward), 0.85, 0.32, ui="#ff7a1a")
     elif muscle:  # big round speedo and tach, three small gauges on the console
         for dx, r, nd in ((-0.26, 0.2, 0.35), (0.26, 0.2, 0.55)):
-            I += dial("gauge", facing((ex + dx, cy - 0.12, hc + 0.12), toward), r, needle=nd, ring=M.CHROME())
+            I += dial("gauge", facing((ex + dx, cy - 0.06, zc), toward), r, needle=nd, ring=M.CHROME())
     else:
         for dx, r, nd in ((-0.27, 0.19, 0.25), (0.27, 0.19, 0.4)):
-            I += dial("gauge", facing((ex + dx, cy - 0.12, hc + 0.12), toward), r, needle=nd, ring=DASH("#3a3c40"))
-        I += screen("mid", facing((ex, cy - 0.13, hc + 0.1), toward), 0.2, 0.22, ui="#7fd0ff", bars=3)
+            I += dial("gauge", facing((ex + dx, cy - 0.06, zc), toward), r, needle=nd, ring=DASH("#3a3c40"))
+        I += screen("mid", facing((ex, cy - 0.07, zc - 0.02), toward), 0.2, 0.22, ui="#7fd0ff", bars=3)
     # --- centre stack
     if not centre:
         sx = 0.0
         if style in ("sedan", "police"):
-            I += screen("infotainment", facing((sx, yc - 0.98, hc + 0.22), toward), 0.85, 0.5)
-            I += [box("vent", (0.36, 0.06, 0.16), (sx + dx, yc - 1.07, hc - 0.18), M.DARK(), bev=0.03) for dx in (-0.25, 0.25)]
-            I += [cyl("knob", 0.07, 0.07, (sx + dx, yc - 1.04, belt - 0.42), M.CHROME(), "Y", segs=14, bev=0.01) for dx in (-0.35, 0.35)]
-            I.append(box("climate", (0.8, 0.05, 0.22), (sx, yc - 1.04, belt - 0.42), PANEL("#1b1d21"), bev=0.03))
+            I += screen("infotainment", facing((sx, back + 0.10, hc + 0.22), toward), 0.85, 0.5)
+            I += [box("vent", (0.36, 0.06, 0.16), (sx + dx, back + 0.01, hc - 0.18), M.DARK(), bev=0.03) for dx in (-0.25, 0.25)]
+            I += [cyl("knob", 0.07, 0.07, (sx + dx, back + 0.04, belt - 0.42), M.CHROME(), "Y", segs=14, bev=0.01) for dx in (-0.35, 0.35)]
+            I.append(box("climate", (0.8, 0.05, 0.22), (sx, back + 0.04, belt - 0.42), PANEL("#1b1d21"), bev=0.03))
         elif muscle:
-            I.append(box("radio", (0.8, 0.06, 0.24), (sx, yc - 1.05, belt - 0.3), M.CHROME(), bev=0.03))
-            I += [cyl("radioknob", 0.06, 0.08, (sx + dx, yc - 1.1, belt - 0.3), DASH(), "Y", segs=12, bev=0.01) for dx in (-0.3, 0.3)]
+            I.append(box("radio", (0.8, 0.06, 0.24), (sx, back + 0.03, belt - 0.3), M.CHROME(), bev=0.03))
+            I += [cyl("radioknob", 0.06, 0.08, (sx + dx, back - 0.02, belt - 0.3), DASH(), "Y", segs=12, bev=0.01) for dx in (-0.3, 0.3)]
         elif sports:
-            I += screen("infotainment", facing((sx, yc - 0.98, hc + 0.05), toward), 0.6, 0.38, ui="#ff7a1a")
+            I += screen("infotainment", facing((sx, back + 0.10, hc + 0.05), toward), 0.6, 0.38, ui="#ff7a1a")
         else:   # pickup: big round vents, simple radio
-            I.append(box("radio", (0.85, 0.06, 0.32), (sx, yc - 1.05, belt - 0.35), PANEL(), bev=0.04))
-            I += screen("radiodisp", facing((sx, yc - 1.09, belt - 0.3), toward), 0.4, 0.12, ui="#7fd0ff", bars=1)
+            I.append(box("radio", (0.85, 0.06, 0.32), (sx, back + 0.03, belt - 0.35), PANEL(), bev=0.04))
+            I += screen("radiodisp", facing((sx, back - 0.01, belt - 0.3), toward), 0.4, 0.12, ui="#7fd0ff", bars=1)
         # vents at the outer ends of the dash
         for s_ in (-1, 1):
-            I.append(cyl("sidevent", 0.16, 0.08, (s_ * (inner - 0.4), yc - 1.06, hc - 0.18), M.DARK(), "Y", segs=16, bev=0.02))
+            I.append(cyl("sidevent", 0.16, 0.08, (s_ * (inner - 0.4), back + 0.02, hc - 0.18), M.DARK(), "Y", segs=16, bev=0.02))
         # glovebox seam on the passenger side
-        I.append(box("glovebox", (0.95, 0.03, 0.4), (-ex * 0.85, yc - 1.02, belt - 0.55), dash_m, bev=0.02))
+        I.append(box("glovebox", (0.95, 0.03, 0.4), (-ex * 0.85, back + 0.06, belt - 0.55), dash_m, bev=0.02))
     # --- console / tunnel between the front seats with the gear selector
     if not centre:
-        cl = max(1.4, (yc - 1.0) - (ck.eye.y - 1.1))
-        I.append(box("console", (0.8, cl, belt - 0.9 - floor), (0, (yc - 1.0 + ck.eye.y - 1.1) / 2, floor + (belt - 0.9 - floor) / 2), dash_m if sports else SOFT(), bev=0.1, segs=3))
-        gy = yc - 1.55
+        cl = max(1.4, (back + 0.08) - (ck.eye.y - 1.1))
+        I.append(box("console", (0.8, cl, belt - 0.9 - floor), (0, (back + 0.08 + ck.eye.y - 1.1) / 2, floor + (belt - 0.9 - floor) / 2), dash_m if sports else SOFT(), bev=0.1, segs=3))
+        gy = back - 0.47
         gz = belt - 0.82
         if muscle or sports:
             I.append(tube("shifter", [(0, gy, gz), (0, gy - 0.12, gz + 0.5)], 0.035, M.CHROME(), segs=8))
@@ -448,7 +463,8 @@ def car(p, G, body, style="sedan", dz=0.0, key=None):
             I.append(box("selector", (0.16, 0.34, 0.24), (0, gy, gz + 0.12), DASH("#121314"), bev=0.06))
         I.append(box("armrest", (0.72, 0.9, 0.18), (0, ck.eye.y - 0.8, belt - 0.65), trim_m, bev=0.08))
     if style == "pickup":
-        I.append(tube("colshift", [(ex + 0.25, ck.cpos.y + 0.25, ck.cpos.z - 0.12), (ex + 0.75, ck.cpos.y + 0.05, ck.cpos.z - 0.02)], 0.03, M.CHROME(), segs=6))
+        # column shifter: comes out of the column behind the wheel and reaches past the rim on the right
+        I.append(tube("colshift", [(ex + 0.15, ck.cpos.y + 0.45, ck.cpos.z - 0.2), (ex + 0.6, ck.cpos.y + 0.42, ck.cpos.z - 0.17), (ex + ck.size + 0.25, ck.cpos.y + 0.36, ck.cpos.z - 0.1)], 0.03, M.CHROME(), segs=6))
     # --- seats
     seat_kind = "racing" if (sports or centre) else ("bench" if style == "pickup" else "bucket")
     if style == "pickup":
@@ -486,12 +502,12 @@ def car(p, G, body, style="sedan", dz=0.0, key=None):
     # --- style extras
     if style == "police":
         # laptop terminal on a pedestal mount by the console, angled to the driver; radio + siren head
-        lm = facing((0.55, yc - 1.75, belt + 0.1), (ex, ck.eye.y, ck.eye.z))
+        lm = facing((0.55, back - 0.67, belt + 0.1), (ex, ck.eye.y, ck.eye.z))
         I.append(put(box("laptopbase", (0.95, 0.65, 0.06), (0, -0.25, 0), DASH("#2a2c30"), bev=0.02), lm))
         I += screen("laptop", lm, 0.85, 0.52, ui="#1fd16b")
-        I.append(tube("laptopmount", [(0.55, yc - 1.65, belt - 0.15), (0.5, yc - 1.55, floor + 0.3)], 0.05, M.STEEL(), segs=8))
-        I.append(box("radiohead", (0.6, 0.15, 0.2), (0, yc - 1.2, belt - 0.78), PANEL("#16181b"), bev=0.03))
-        I += toggles("siren", frame((0, yc - 1.32, belt - 0.95), (1, 0, 0), (0, 0.4, 1)), 5, pitch=0.12, color="#d8231c")
+        I.append(tube("laptopmount", [(0.55, back - 0.57, belt - 0.15), (0.5, back - 0.47, floor + 0.3)], 0.05, M.STEEL(), segs=8))
+        I.append(box("radiohead", (0.6, 0.15, 0.2), (0, back - 0.12, belt - 0.78), PANEL("#16181b"), bev=0.03))
+        I += toggles("siren", frame((0, back - 0.24, belt - 0.95), (1, 0, 0), (0, 0.4, 1)), 5, pitch=0.12, color="#d8231c")
         # prisoner partition behind the front seats: steel frame, bars and a plexi window
         py = ck.hip.y - 1.35
         I.append(tube("cagefrm", [(-inner, py, floor + 0.2), (-inner, py, roof - 0.3), (inner, py, roof - 0.3), (inner, py, floor + 0.2)], 0.05, M.STEEL(), segs=8))
@@ -501,9 +517,9 @@ def car(p, G, body, style="sedan", dz=0.0, key=None):
         I.append(box("cagelow", (2 * inner, 0.08, belt - 0.2 - floor), (0, py, floor + (belt - 0.2 - floor) / 2), M.STEEL(), bev=0.02))
         I.append(box("shotgunrack", (0.3, 0.12, 1.2), (0, py + 0.12, belt + 0.5), M.DARK(), bev=0.03))
     if style == "muscle":
-        I.append(box("gaugepod", (0.5, 0.65, 0.18), (0, yc - 1.45, belt - 0.6), M.CHROME(), bev=0.05, rot=(math.radians(15), 0, 0)))
+        I.append(box("gaugepod", (0.5, 0.65, 0.18), (0, back - 0.37, belt - 0.6), M.CHROME(), bev=0.05, rot=(math.radians(15), 0, 0)))
         for k, dx in enumerate((-0.15, 0.0, 0.15)):
-            I += dial("podg", facing((dx, yc - 1.6, belt - 0.5), (ex, ck.eye.y, ck.eye.z)), 0.065, ticks=5, needle=0.4 + 0.1 * k)
+            I += dial("podg", facing((dx, back - 0.52, belt - 0.5), (ex, ck.eye.y, ck.eye.z)), 0.065, ticks=5, needle=0.4 + 0.1 * k)
     if style == "monster":
         # containment seat in the middle of the body, switch panel and kill switch, gauge pod
         I += toggles("switches", facing((0.85, ck.cpos.y + 0.15, ck.cpos.z - 0.1), (ex, ck.eye.y, ck.eye.z)), 6)
@@ -535,16 +551,19 @@ def bus(s, G, body, fz, roof, half_w):
     I += seat("drv", ex, ey, ck.seat_top, width=2.0, back=12, kind="bucket", material=CLOTH("#26292e"))
     I.append(cyl("airride", 0.3, ck.seat_top - 0.4 - plat, (ex, ey + 0.2, plat + (ck.seat_top - 0.4 - plat) / 2), M.DARK(), "Z", segs=14))
     # wraparound dash below the 2.6 m tall windscreen
-    dy = ck.cpos.y + 0.6
+    # the wheel lies nearly flat, so its front edge reaches cpos + r sin(tilt) forward and stays above
+    # the hub height: the dash and the gauge panel start just ahead of that edge
     dz = ck.cpos.z
-    I.append(box("dash", (half_w * 2 - 0.6, 1.2, 0.5), (0, dy + 0.3, dz - 0.05), DASH(), bev=0.15))
-    I.append(box("dashface", (3.4, 0.4, 1.1), (ex + 0.2, dy - 0.15, dz - 0.6), DASH("#24262a"), bev=0.1, rot=(math.radians(-20), 0, 0)))
+    front = ck.cpos.y + ck.size * math.sin(math.radians(ck.tilt)) + 0.16
+    dy = front + 0.35
+    I.append(box("dash", (half_w * 2 - 0.6, 1.2, 0.5), (0, front + 0.6, dz - 0.15), DASH(), bev=0.15))
+    I.append(box("dashface", (3.4, 0.4, 1.1), (ex + 0.2, front + 0.2, dz - 0.4), DASH("#24262a"), bev=0.1, rot=(math.radians(-20), 0, 0)))
     toward = (ex, ey, ck.eye.z)
     for k, dx in enumerate((-0.45, 0.0, 0.45)):
-        I += dial("busg", facing((ex + dx, dy - 0.18, dz + 0.12), toward), 0.17, needle=0.25 + 0.15 * k)
-    I += toggles("busswL", facing((ex - 1.15, dy - 0.05, dz + 0.1), toward), 5)
-    I += toggles("busswR", facing((ex + 1.25, dy - 0.05, dz + 0.1), toward), 5)
-    I += [cyl("doorbtn", 0.08, 0.06, (ex + 1.6 + k * 0.25, dy - 0.1, dz + 0.22), KNOB("#1fd16b" if k == 0 else "#e01616"), "Z", segs=12, bev=0.01) for k in range(2)]
+        I += dial("busg", facing((ex + dx, front + 0.08, dz - 0.02), toward), 0.17, needle=0.25 + 0.15 * k)
+    I += toggles("busswL", facing((ex - 1.15, front + 0.1, dz - 0.05), toward), 5)
+    I += toggles("busswR", facing((ex + 1.25, front + 0.1, dz - 0.05), toward), 5)
+    I += [cyl("doorbtn", 0.08, 0.06, (ex + 1.6 + k * 0.25, front + 0.45, dz + 0.12), KNOB("#1fd16b" if k == 0 else "#e01616"), "Z", segs=12, bev=0.01) for k in range(2)]
     I.append(box("farebox", (0.65, 0.65, 2.3), (ex + 2.1, ey + 0.4, fz + 1.15), M.STEEL(), bev=0.06))
     I += screen("farescreen", facing((ex + 2.1, ey + 0.1, fz + 2.05), toward), 0.4, 0.25, ui="#1fd16b", bars=2)
     I.append(box("barrier", (0.06, 2.0, 2.4), (ex + 1.55, ey - 0.7, plat + 1.9), mat("BarrierGlass", "#9fb3bf", rough=0.05, alpha=0.35), bev=0.01))

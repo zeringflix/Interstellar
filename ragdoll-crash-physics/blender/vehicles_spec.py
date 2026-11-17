@@ -391,9 +391,9 @@ def wheel_at(eye, f, down, r, tilt, kind="wheel"):
 
 
 COCKPITS = {
-    # midsize sedan: eye ~0.6 ahead of the B-pillar, 15 in wheel ~19 in from the chest
-    "Sedan": dict(eye=[-1.75, 4.43, -0.3], control=("wheel", 1.55, 1.25, 0.6, 25)),
-    "PoliceCar": dict(eye=[-1.75, 4.43, -0.35], control=("wheel", 1.55, 1.25, 0.6, 25)),
+    # midsize sedan: head just ahead of the B-pillar, 15 in wheel ~19 in from the chest, rim well under the raked screen
+    "Sedan": dict(eye=[-1.75, 4.43, 0.1], control=("wheel", 1.55, 1.25, 0.6, 25)),
+    "PoliceCar": dict(eye=[-1.75, 4.43, 0.05], control=("wheel", 1.55, 1.25, 0.6, 25)),
     # mid-engined supercar: low, reclined, small flat-bottom wheel close to the chest
     "SportsCar": dict(eye=[-1.8, 3.25, 0.9], control=("wheel", 1.45, 1.05, 0.52, 20)),
     # 60s muscle car: thin-rimmed big wheel, upright
@@ -403,9 +403,9 @@ COCKPITS = {
     # monster truck: driver centred in the body for balance and protection
     "MonsterTruck": dict(eye=[0.0, 9.6, -0.5], control=("wheel", 1.45, 1.2, 0.55, 25)),
     # transit bus: raised driver's platform, near-horizontal big wheel
-    "CityBus": dict(eye=[-2.3, 6.9, -15.2], control=("wheel", 1.45, 1.45, 0.95, 62)),
+    "CityBus": dict(eye=[-2.3, 6.9, -14.6], control=("wheel", 1.45, 1.45, 0.95, 62)),
     # heavy dump truck: high cab, big wheel on a steep column
-    "DumpTruck": dict(eye=[-2.2, 8.3, -7.6], control=("wheel", 1.5, 1.35, 0.85, 40)),
+    "DumpTruck": dict(eye=[-2.2, 8.3, -7.3], control=("wheel", 1.5, 1.35, 0.85, 40)),
     # tank: driven head-out of the open driver's hatch, T-bar handlebars below
     "Tank": dict(eye=[-2.2, 5.15, -5.0], control=("bars", 0.55, 1.75, 1.3, 15)),
     # armoured truck: upright seat, small thick windscreen panes
