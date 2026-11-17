@@ -151,10 +151,12 @@ def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
     s = spec(key)
     # proportions of a regular-cab full-size pickup: ~1/3 hood, ~1/3 cab, bed behind; windscreen base
     # sits just behind the front wheel, the door just clears the arch. Flat sides, crisp creases,
-    # squared-off arches (sharp=True, arch_power).
+    # squared-off arches (sharp=True, arch_power). Like a real truck the cab is a box: flat roof with
+    # hard edges at the header and the rear (creased rings), an upright rear screen, a solid rear pillar
+    # behind a flat-topped door window (c_pillar), and a separate bed with a gap behind the cab.
     p = car_dims("PickupTruck", L=18.6, W=7.6, color=color, clear=1.25, belt=4.15, roof=6.25, hood_front=3.8, hood_cowl=4.2,
-                 cowl=3.9, ws_top=2.0, roof_rear=-1.6, deck=-2.0, trunk=4.3, b_pillar=0.0, arch=1.13, roof_w=0.88, nose_w=0.97, tail_w=0.99,
-                 wheel_style=style, rim_color="#c9ccd1", doors=[3.4, -1.4], seat_rows=[0.4], crown=0.03, flare=0.0, sharp=True, arch_power=3.2,
+                 cowl=3.9, ws_top=2.0, roof_rear=-2.0, deck=-2.15, c_pillar=0.55, trunk=4.3, b_pillar=0.0, arch=1.13, roof_w=0.88, nose_w=0.97, tail_w=0.99,
+                 wheel_style=style, rim_color="#c9ccd1", doors=[3.4, -1.55], seat_rows=[0.4], crown=0.03, flare=0.0, sharp=True, arch_power=3.2,
                  headlight=(0.58, 0.92, 2.95, 3.5), grille=(0.52, 2.2, 3.55), grille_bars=4, exhausts=(2.6,), taillight=(0.86, 0.97, 2.9, 3.9),
                  plate_front=True, antenna=False, b_blackout=False, handle_drop=0.25, single_window=True)
     p.update(over)
@@ -171,6 +173,11 @@ def pickup_body(key, color, wheels, lift=0.0, style="offroad", **over):
             b = C.box("bumper", (7.5, 0.5, 0.75), (0, yb, zc), M.CHROME(), bev=0.16, segs=3)
             G["Trim"].append(b)
         G["Trim"].append(surf.project("tailgate", "B", (-3.3, 2.65, 3.3, 2.7), M.DARK(), 0.006, res=0.15))
+        for side in ("L", "R"):   # the gap between the cab and the bed, rocker to bed rail
+            gap = C.groove_path(surf, side, [(-2.27, p["clear"] + 0.3 + k * (p["trunk"] - p["clear"] - 0.33) / 11) for k in range(12)],
+                                M.DARK(), radius=0.035, sink=0.002)
+            if gap:
+                G["Trim"].append(gap)
         G["Trim"].append(C.box("tghandle", (0.9, 0.06, 0.2), (0, -p["L"] / 2 - 0.03, 3.85), M.DARK(), bev=0.03))
         G["Trim"].append(C.cyl("hitch", 0.16, 0.5, (0, -p["L"] / 2 - 0.45, 1.5), M.STEEL(), "Y", segs=12))
         for sgn in (-1, 1):

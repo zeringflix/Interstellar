@@ -12,7 +12,8 @@ from rcp_model import box, cyl, lathe, loft, tube, mat, section
 
 def stations(p):
     """Turn a handful of named dimensions into the list of body cross-sections (rear -> front).
-    Returns (rings, flags) where flags[i] describes the segment between ring i and i+1."""
+    Returns (rings, flags, creases): flags[i] describes the segment between ring i and i+1, creases
+    lists the rings whose greenhouse edges stay hard on sharp (truck) bodies."""
     L, hw = p["L"], p["W"] / 2
     c, belt, roof = p["clear"], p["belt"], p["roof"]
     hf, hc = p["hood_front"], p["hood_cowl"]
@@ -26,42 +27,77 @@ def stations(p):
     fl = p.get("flare", 0.025)
     yaf, yar = p["axle_f"], p["axle_r"]
     S = []
+    sharp = p.get("sharp", False)
+    creases = []
 
     fender = p["wheel_r"] * (p.get("arch_z", 0.95) + p.get("arch", 1.2)) + 0.14   # arches must stay below the wing tops
 
-    def add(y, w, zf, zb, zd, wd, flag="", cr=None, flare=0.0):
+    def add(y, w, zf, zb, zd, wd, flag="", cr=None, flare=0.0, hard=False):
         if flare:   # axle stations: raise the wing over the wheel if the bonnet / boot is lower than the arch
             zb = max(zb, fender)
             zd = max(zd, zb + 0.04)
-        S.append((section(y, hw * w, zf, zb, zd, hw * wd, crown if cr is None else cr, flare, sharp=p.get("sharp", False)), flag))
+        if hard and sharp:
+            creases.append(len(S))
+        S.append((section(y, hw * w, zf, zb, zd, hw * wd, crown if cr is None else cr, flare, sharp=sharp), flag))
 
     tb = min(belt, tz)  # beltline under the boot
     # --- tail
-    add(tail + 0.02, tw * 0.74, c + 0.55, tz - 0.55, tz - 0.5, tw * 0.6, cr=0.02)
-    add(tail + 0.12, tw * 0.93, c + 0.22, tb - 0.2, tz - 0.14, tw * 0.8, cr=0.04)
+    if sharp:   # trucks: a flat, upright tailgate with square corners
+        add(tail + 0.02, tw * 0.96, c + 0.3, tb - 0.06, tz - 0.05, tw * 0.82, cr=0.02)
+        add(tail + 0.12, tw * 0.99, c + 0.12, tb - 0.02, tz - 0.01, tw * 0.84, cr=0.02)
+    else:
+        add(tail + 0.02, tw * 0.74, c + 0.55, tz - 0.55, tz - 0.5, tw * 0.6, cr=0.02)
+        add(tail + 0.12, tw * 0.93, c + 0.22, tb - 0.2, tz - 0.14, tw * 0.8, cr=0.04)
     add(tail + 0.7, tw + (1 - tw) * 0.5, c + 0.06, tb - 0.04, tz - 0.03, tw * 0.84)
-    add(yar - p["wheel_r"] * 0.4, 1.0, c, tb, tz, 0.84, flare=fl)
-    add(yar + p["wheel_r"] * 0.5, 1.0, c, tb, tz, 0.84, flare=fl)
-    if ydk - (yar + p["wheel_r"] * 0.5) > 0.6:
+    # rear axle stations. Rings must run rear -> front, so each one goes where it falls: ahead of the
+    # boot / bed (normal cars), or under the rear screen (mid-engined fastbacks), where the screen is
+    # carried over the wheel and the shoulder rises into a haunch over the arch.
+    last_y = lambda: S[-1][0][0][1]
+    under_glass = []
+    for ya in (max(yar - p["wheel_r"] * 0.4, tail + 1.0), yar + p["wheel_r"] * 0.5):
+        if last_y() + 0.3 < ya < ydk - 0.3:
+            add(ya, 1.0, c, tb, tz, 0.84, flare=fl)
+        elif ydk + 0.3 < ya < yrr - 0.3:
+            under_glass.append(ya)
+    if ydk - last_y() > 0.6:
         add(ydk - 0.25, 1.0, c, belt, tz, 0.85)
-    add(ydk, 1.0, c, belt, tz + 0.04, 0.84, "rw")                 # base of the rear screen
-    add(yrr, 1.0, c, belt, roof - 0.06, rw_, "glass")              # rear of the roof
+    add(ydk, 1.0, c, belt, tz + 0.04, 0.84, "rw", hard=True)       # base of the rear screen
+    for ya in under_glass:
+        t = (ya - ydk) / (yrr - ydk)
+        add(ya, 1.0, c, belt, tz + 0.04 + (roof - 0.1 - tz) * t, 0.84 + (rw_ - 0.84) * t, "rw", flare=fl)
+    cp = p.get("c_pillar", 0.0)    # regular-cab pickups: a solid rear pillar behind the door glass
+    add(yrr, 1.0, c, belt, roof - 0.06, rw_, "pillar" if cp else "glass", hard=True)   # rear of the roof
+    if cp:
+        add(yrr + cp, 1.0, c, belt, roof - 0.06, rw_, "glass", hard=True)
     if not p.get("single_window"):  # 4-door cars and coupes: B-pillar between the side windows
         add(yb - 0.22, 1.0, c, belt, roof, rw_, "pillar")
         add(yb + 0.22, 1.0, c, belt, roof, rw_, "glass")
-    add(ywt, 1.0, c, belt, roof - 0.05, rw_, "ws")                 # header rail
-    add(yc, 1.0, c, belt, hc + 0.05, 0.86)                          # cowl / base of the windscreen
+    add(ywt, 1.0, c, belt, roof - 0.05, rw_, "ws", hard=True)      # header rail
+    add(yc, 1.0, c, belt, hc + 0.05, 0.86, hard=True)               # cowl / base of the windscreen
     add(yc + 0.3, 1.0, c, hc - 0.04, hc, 0.86)
-    add(yaf + p["wheel_r"] * 0.5, 1.0, c, (hc + hf) / 2 - 0.03, (hc + hf) / 2 + 0.03, 0.85, flare=fl)
-    add(yaf - p["wheel_r"] * 0.4, 0.99, c, hf + 0.06, hf + 0.12, 0.84, flare=fl)
-    add(nose - 0.8, nw + (1 - nw) * 0.55, c + 0.05, hf - 0.02, hf + 0.03, nw * 0.82)
-    add(nose - 0.14, nw * 0.95, c + 0.2, hf - 0.2, hf - 0.14, nw * 0.76, cr=0.04)
-    add(nose - 0.02, nw * 0.76, c + 0.5, hf - 0.6, hf - 0.55, nw * 0.6, cr=0.02)
-    return [s[0] for s in S], [s[1] for s in S]
+    # front axle: the station behind the wheel centre first, then the one ahead (rings run rear -> front;
+    # these two used to be swapped, which folded the bonnet back on itself over the front wheel)
+    f_back = max(yaf - p["wheel_r"] * 0.5, yc + 0.6)
+    f_fwd = min(yaf + p["wheel_r"] * 0.4, nose - 1.1)
+    if f_fwd > f_back + 0.3:
+        add(f_back, 1.0, c, (hc + hf) / 2 - 0.03, (hc + hf) / 2 + 0.03, 0.85, flare=fl)
+    add(f_fwd, 0.99, c, hf + 0.06, hf + 0.12, 0.84, flare=fl)
+    if sharp:   # trucks: a tall, blunt, upright nose with a hard leading edge on the bonnet
+        add(nose - 0.8, nw + (1 - nw) * 0.55, c + 0.05, hf - 0.01, hf + 0.03, nw * 0.83)
+        add(nose - 0.14, nw * 0.99, c + 0.12, hf - 0.06, hf - 0.02, nw * 0.83, cr=0.02, hard=True)
+        add(nose - 0.02, nw * 0.96, c + 0.3, hf - 0.14, hf - 0.1, nw * 0.8, cr=0.02)
+    else:
+        add(nose - 0.8, nw + (1 - nw) * 0.55, c + 0.05, hf - 0.02, hf + 0.03, nw * 0.82)
+        add(nose - 0.14, nw * 0.95, c + 0.2, hf - 0.2, hf - 0.14, nw * 0.76, cr=0.04)
+        add(nose - 0.02, nw * 0.76, c + 0.5, hf - 0.6, hf - 0.55, nw * 0.6, cr=0.02)
+    ys = [s[0][0][1] for s in S]
+    bad = [(round(a, 2), round(b, 2)) for a, b in zip(ys, ys[1:]) if b <= a]
+    assert not bad, "%s: body stations out of order (rear -> front): %s" % (p.get("key"), bad)
+    return [s[0] for s in S], [s[1] for s in S], creases
 
 
 def body_shell(p, paint, extra_cut=None):
-    rings, flags = stations(p)
+    rings, flags, creases = stations(p)
 
     def mat_fn(i, j):
         f = flags[i]
@@ -78,6 +114,7 @@ def body_shell(p, paint, extra_cut=None):
     shell = loft("shell", rings, materials=[paint, M.GLASS()], mat_fn=mat_fn)
     if p.get("sharp"):  # trucks: crisp body edges that survive the subdivision
         M.crease_lengthwise(shell, rings, M.CORNER_POINTS)
+        M.crease_rings(shell, rings, creases, M.GREENHOUSE_POINTS)
     M.subsurf(shell, p.get("subdiv", 2))
     # wheel arches (squared-off on trucks)
     for y in (p["axle_f"], p["axle_r"]):

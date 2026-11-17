@@ -451,6 +451,28 @@ def crease_lengthwise(ob, rings, points, caps=True, value=0.92):
             attr.data[e.index].value = value
 
 
+def crease_rings(ob, rings, ring_ids, points, value=0.95):
+    """Crease the crosswise edges of the given rings that join consecutive ring points in `points`.
+    Lengthwise creases alone still let subdivision round the roof into a bubble between rings; this
+    keeps a truck's cowl, windscreen header, roof rear edge and rear-screen base as hard lines, so the
+    roof stays flat and the side window keeps square corners."""
+    key = lambda co: (round(co[0], 4), round(co[1], 4), round(co[2], 4))
+    index = {}
+    for ri in ring_ids:
+        for j, pt in enumerate(rings[ri]):
+            index.setdefault(key(pt), (ri, j))
+    me = ob.data
+    attr = me.attributes.get("crease_edge") or me.attributes.new("crease_edge", "FLOAT", "EDGE")
+    for e in me.edges:
+        a = index.get(key(me.vertices[e.vertices[0]].co))
+        b = index.get(key(me.vertices[e.vertices[1]].co))
+        if a and b and a[0] == b[0] and a[1] in points and b[1] in points:
+            attr.data[e.index].value = value
+
+
+GREENHOUSE_POINTS = set(range(5, 18))   # belt -> roof -> belt across the top of a 22-point ring
+
+
 # ---- wheels ------------------------------------------------------------------------
 def tyre(r, w, rim_r, material=None, grooves=3, bulge=0.06, lugs=0, lug_h=0.0):
     """Tyre cross-section revolved: bead, bulged sidewall, shoulder, grooved tread."""

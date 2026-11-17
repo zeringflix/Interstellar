@@ -21,6 +21,9 @@ def place_wheels(G, wheels, style, rim=None, rim_frac=0.6):
 def shell_from(stations, materials, subdiv=2, sharp=True):
     rings = [s[0] for s in stations]
     flags = [s[1] for s in stations]
+    ys = [r[0][1] for r in rings]
+    bad = [(round(a, 2), round(b, 2)) for a, b in zip(ys, ys[1:]) if b <= a]
+    assert not bad, "truck body stations out of order (rear -> front): %s" % bad
 
     def mat_fn(i, j):
         f = flags[i]
