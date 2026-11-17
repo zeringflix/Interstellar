@@ -2,6 +2,7 @@ roblox/tests/out/
 __pycache__/
 *.blend1
 blender/out/*.fbx
-out/prepared/
-out/untextured/
-out/textures/**/*_Mask.png
+blender/out/prepared/
+blender/out/untextured/
+blender/out/textures/
+blender/out/previews/looks/
