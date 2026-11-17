@@ -685,7 +685,7 @@ function UI.init(screenGui: ScreenGui, isMobile: boolean, remotes: Instance)
 		touchLine.Position, touchLine.Size = UDim2.fromOffset(6, 30), UDim2.new(1, -12, 0, 18)
 		resetBtn.AnchorPoint, resetBtn.Position, resetBtn.Size = Vector2.new(1, 0), UDim2.new(1, -6, 0, 4), UDim2.fromOffset(116, 24)
 		viewBtn.AnchorPoint, viewBtn.Position, viewBtn.Size = Vector2.new(1, 0), UDim2.new(1, -128, 0, 4), UDim2.fromOffset(110, 24)
-		nameLabel.Size = UDim2.fromOffset(110, 18)
+		nameLabel.Size, nameLabel.TextSize = UDim2.fromOffset(80, 18), 12 -- room for the view button
 	else
 		hud.AnchorPoint = Vector2.new(1, 1)
 		hud.Position = UDim2.new(1, -14, 1, -14)
