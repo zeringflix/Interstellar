@@ -515,7 +515,7 @@ def car(p, G, body, style="sedan", dz=0.0, key=None):
     add(G, "Interior", I)
     # --- the cab seen from inside
     rear = (rows[1] - 1.6) if rear_row else (p["roof_rear"] - 0.9)
-    lin = lining("lining", body, (-hw - 0.5, rear, belt - 1.6), (hw + 0.5, yc - 0.05, roof + 0.5), HEADLINER() if style not in ("sports",) else LEATHER("#1c1a19"))
+    lin = lining("lining", body, (-hw - 0.5, rear, belt - 1.6), (hw + 0.5, yc - 0.05, roof + 0.5), HEADLINER() if style not in ("sports",) else mat("SeatHeadlinerAlcantara", "#1c1a19", rough=0.9))
     add(G, "Interior", [lin])
     control(G, ck, spokes=4 if style == "pickup" else (2 if muscle else 3), flat_bottom=sports, wood=muscle,
             grip=0.06 if muscle else 0.075)
@@ -597,6 +597,7 @@ def armoured(s, G, body, cab_lo, cab_hi):
     ex, ey = ck.eye.x, ck.eye.y
     floor = cab_lo[2] + 0.3
     green = mat("ArmourInterior", "#59614f", rough=0.75)
+    green_lining = mat("LiningArmour", "#6a7360", rough=0.75)
     I += seat("drv", ex, ey, ck.seat_top, width=1.9, back=10, kind="racing", material=CLOTH("#2e3328"))
     I += seat("cmd", -ex, ey, ck.seat_top, width=1.9, back=10, kind="racing", material=CLOTH("#2e3328"))
     I += harness("harness", ex, ey, ck.seat_top, color="#3d4a2b")
@@ -617,7 +618,7 @@ def armoured(s, G, body, cab_lo, cab_hi):
     I += pedals("pedal", ex + 0.05, dy - 0.25, floor + 0.45, n=2)
     I.append(box("floor", (2 * cab_hi[0] - 0.6, cab_hi[1] - cab_lo[1] - 0.4, 0.1), (0, (cab_lo[1] + cab_hi[1]) / 2, floor - 0.05), M.STEEL(), bev=0.02))
     add(G, "Interior", I)
-    add(G, "Interior", [lining("lining", body, cab_lo, cab_hi, green, inset=0.08)])
+    add(G, "Interior", [lining("lining", body, cab_lo, cab_hi, green_lining, inset=0.08)])
     control(G, ck, spokes=4, grip=0.08)
 
 
@@ -695,7 +696,7 @@ def flight_deck(s, G, body, deck_z, ws_y, half_w, ceil):
     I.append(box("bulkhead", (2 * half_w - 0.4, 0.12, ceil - deck_z), (0, ey - 3.6, deck_z + (ceil - deck_z) / 2), PANEL("#5b6067"), bev=0.02))
     I.append(box("bulkdoor", (1.4, 0.14, 3.2), (0, ey - 3.58, deck_z + 1.6), M.DARK(), bev=0.03))
     add(G, "Interior", I)
-    add(G, "Interior", [lining("lining", body, (-half_w - 1, ey - 3.7, deck_z - 0.5), (half_w + 1, ws_y + 1.8, ceil + 1.0), PANEL("#8d939a"), skip_down=False)])
+    add(G, "Interior", [lining("lining", body, (-half_w - 1, ey - 3.7, deck_z - 0.5), (half_w + 1, ws_y + 1.8, ceil + 1.0), mat("LiningPanel", "#8d939a", rough=0.6), skip_down=False)])
     control(G, ck)
 
 

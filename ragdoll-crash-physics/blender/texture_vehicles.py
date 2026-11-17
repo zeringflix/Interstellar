@@ -215,7 +215,10 @@ def build_material(src, img_mask, wear, obj_height, vehicle, look=None):
     tex = g.node("ShaderNodeTexCoord")
     pos = (geo, "Position")
     # ---- mask pass graph (ray traced: AO + bevel)
-    ao = g.node("ShaderNodeAmbientOcclusion", Distance=0.9, _samples=12, _only_local=True)
+    # cab linings face inwards, so a long AO reach would see the whole cabin and turn them black:
+    # give them a short reach that only darkens real creases
+    lining = any(k in src.name for k in ("Headliner", "Lining", "RoofInside"))
+    ao = g.node("ShaderNodeAmbientOcclusion", Distance=0.15 if lining else 0.9, _samples=12, _only_local=True)
     ao_t = g.node("ShaderNodeAmbientOcclusion", Distance=0.12, _samples=12, _only_local=True)
     bev = g.node("ShaderNodeBevel", Radius=0.06, _samples=8)
     dotn = g.node("ShaderNodeVectorMath", _operation="DOT_PRODUCT")
