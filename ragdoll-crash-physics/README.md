@@ -4,6 +4,8 @@ A Roblox vehicle-crash sandbox: spawn a vehicle, drive or fly it into grey ragdo
 
 ## Open it in Roblox Studio
 
+**Full step-by-step install guide, written for a Claude agent or a person: [`INSTALL_WITH_CLAUDE_DESKTOP.md`](INSTALL_WITH_CLAUDE_DESKTOP.md).** It covers the download with checksums, opening the place, importing the models, an install check script (`roblox/tools/verify_install_studio.luau`, paste into the Command Bar until it prints `INSTALL OK`), game settings, the Robux passes and a play-test checklist. The short version:
+
 1. Open **`RagdollCrashPhysics.rbxlx`** in Roblox Studio (File > Open from File). Every script, the UI, the audio, the dummies and the whole Test Grounds map are already in it. The map sits in `Workspace.Map`, so you can see and edit it before pressing Play; the server uses that map as-is.
 2. Add the detailed vehicle models (one import): File > **Import 3D** > `blender/out/AllVehicles.glb`, keep the default options, then drag the imported model into `ReplicatedStorage.VehicleMeshes`. Each vehicle switches from its blocky stand-in to the detailed model automatically. (Single vehicles: `blender/out/<Vehicle>.glb`.)
 3. File > Publish to Roblox. In Game Settings set **Max Players = 1** (one sandbox per server), and under Security turn on **Allow HTTP requests** only if you add web features later (not needed now).
@@ -15,9 +17,9 @@ Rebuild the place from source with `cd roblox && rojo build -o place.rbxl && lun
 
 | Folder | What is in it |
 |---|---|
-| `roblox/` | The game: a Rojo project (`rojo build -o RagdollCrashPhysics.rbxlx`), 29 Luau modules, tests |
+| `roblox/` | The game: a Rojo project (`rojo build -o RagdollCrashPhysics.rbxlx`), 32 Luau scripts, tests, `tools/verify_install_studio.luau` |
 | `blender/` | Procedural Blender modelling code and the 17 finished vehicle models (`out/*.blend`, `*.glb`, renders) |
-| `docs/` | `vehicles.jpg` (all models, in unlock order), `side_views.jpg` (cars and trucks side-on: windows, doors, sharp truck cab), `four_door.jpg` (sedan and police car: side, front and rear three-quarter), `map_topdown.png` (map render) |
+| `docs/` | `first_person.jpg` (the driver's view in every vehicle), `vehicles.jpg` (all models, in unlock order), `side_views.jpg` (cars and trucks side-on: windows, doors, sharp truck cab), `four_door.jpg` (sedan and police car: side, front and rear three-quarter), `map_topdown.png` (map render) |
 
 ![vehicles](docs/vehicles.jpg)
 
@@ -149,6 +151,7 @@ Roblox Studio cannot run in the environment this was built in, so **nothing has 
 | `damage_spec` | 86 | Damage curve, regions, statuses, blood, revive |
 | `builders_spec` | 1029 | All 17 vehicles and 5 dummy types build against the Roblox API database; every cockpit's eye sits over its seat and both hand grips are within an avatar's reach; an imported steering wheel gets its turning joint |
 | `map_spec` | 210 | Map builds; every spawn and preset dummy stands on something solid |
+| `verify_install_spec` | 9 | The Studio install check script reports every missing vehicle before the import, prints INSTALL OK after a full import, and catches a renamed mesh and a missing texture |
 | `place_spec` | 12 | The finished place file has every script in the right container, the baked map, and the server reuses it |
 | `integration_spec` | 150 | The real server and client scripts run end to end on a mock engine: boot, a 56 mph crash, one hit per dummy, crash report, explosion, revive, resets without leaks, presets, limits, hostile requests, events, body and map switching, the whole UI with every button pressed, crash points unlocking vehicles in order, locked spawns refused, Robux pass purchase and ownership, saving, the first-person view (camera at the eye point, seat fit, head hidden, clear glass, both hands on the controls, clean exit) |
 
