@@ -110,36 +110,61 @@
   ]
  },
  "CityBus": {
-  "CityBus_Body": 16422,
-  "CityBus_Glass": 4480,
-  "CityBus_Lights": 8364,
-  "CityBus_Trim": 18212,
-  "CityBus_Trim2": 10512,
-  "CityBus_Wheel1": 6404,
-  "CityBus_Wheel2": 6404,
-  "CityBus_Wheel3": 6404,
-  "CityBus_Wheel4": 6404
+  "objects": {
+   "CityBus_Body": 16422,
+   "CityBus_Glass": 4480,
+   "CityBus_Lights": 8364,
+   "CityBus_Trim": 18410,
+   "CityBus_Trim2": 18432,
+   "CityBus_Trim3": 1184,
+   "CityBus_Wheel1": 6404,
+   "CityBus_Wheel2": 6404,
+   "CityBus_Wheel3": 6404,
+   "CityBus_Wheel4": 6404
+  },
+  "tris": 92908,
+  "size": [
+   10.15,
+   37.1,
+   10.11
+  ]
  },
  "DumpTruck": {
-  "DumpTruck_Body": 7152,
-  "DumpTruck_Glass": 256,
-  "DumpTruck_Lights": 1540,
-  "DumpTruck_Trim": 13808,
-  "DumpTruck_Wheel1": 6390,
-  "DumpTruck_Wheel2": 6390,
-  "DumpTruck_Wheel3": 6390,
-  "DumpTruck_Wheel4": 6390,
-  "DumpTruck_Wheel5": 6390,
-  "DumpTruck_Wheel6": 6390
+  "objects": {
+   "DumpTruck_Body": 7152,
+   "DumpTruck_Glass": 256,
+   "DumpTruck_Lights": 1540,
+   "DumpTruck_Trim": 17740,
+   "DumpTruck_Wheel1": 6390,
+   "DumpTruck_Wheel2": 6390,
+   "DumpTruck_Wheel3": 6390,
+   "DumpTruck_Wheel4": 6390,
+   "DumpTruck_Wheel5": 6390,
+   "DumpTruck_Wheel6": 6390
+  },
+  "tris": 65028,
+  "size": [
+   11.72,
+   27.65,
+   12.17
+  ]
  },
  "Tank": {
-  "Tank_Body": 2036,
-  "Tank_Lights": 592,
-  "Tank_Trim": 10164,
-  "Tank_Trim2": 18052,
-  "Tank_Trim3": 18460,
-  "Tank_Trim4": 1436,
-  "Tank_Turret": 5596
+  "objects": {
+   "Tank_Body": 2036,
+   "Tank_Lights": 592,
+   "Tank_Trim": 10164,
+   "Tank_Trim2": 18052,
+   "Tank_Trim3": 18444,
+   "Tank_Trim4": 2068,
+   "Tank_Turret": 6528
+  },
+  "tris": 57884,
+  "size": [
+   15.68,
+   27.77,
+   12.08
+  ]
  },
  "ArmoredTruck": {
   "objects": {
@@ -147,13 +172,14 @@
    "ArmoredTruck_Glass": 2768,
    "ArmoredTruck_Lights": 540,
    "ArmoredTruck_Trim": 18106,
-   "ArmoredTruck_Trim2": 14048,
+   "ArmoredTruck_Trim2": 18492,
+   "ArmoredTruck_Trim3": 4672,
    "ArmoredTruck_Wheel1": 9418,
    "ArmoredTruck_Wheel2": 9418,
    "ArmoredTruck_Wheel3": 9418,
    "ArmoredTruck_Wheel4": 9418
   },
-  "tris": 75068,
+  "tris": 84184,
   "size": [
    11.27,
    22.83,
@@ -165,13 +191,13 @@
    "SmallPlane_Body": 12592,
    "SmallPlane_Glass": 832,
    "SmallPlane_Lights": 464,
-   "SmallPlane_Trim": 7914,
+   "SmallPlane_Trim": 10786,
    "SmallPlane_Spin1": 976,
    "SmallPlane_Wheel1": 4408,
    "SmallPlane_Wheel2": 4408,
    "SmallPlane_Wheel3": 4408
   },
-  "tris": 36002,
+  "tris": 38874,
   "size": [
    34.35,
    30.65,
@@ -179,23 +205,40 @@
   ]
  },
  "CargoPlane": {
-  "CargoPlane_Body": 11144,
-  "CargoPlane_Glass": 3063,
-  "CargoPlane_Lights": 356,
-  "CargoPlane_Spin1": 1760,
-  "CargoPlane_Spin2": 1760,
-  "CargoPlane_Trim": 15716,
-  "CargoPlane_Wheel1": 4408,
-  "CargoPlane_Wheel2": 4408,
-  "CargoPlane_Wheel3": 4408
+  "objects": {
+   "CargoPlane_Body": 11144,
+   "CargoPlane_Glass": 3063,
+   "CargoPlane_Lights": 356,
+   "CargoPlane_Trim": 18416,
+   "CargoPlane_Trim2": 2572,
+   "CargoPlane_Spin1": 1760,
+   "CargoPlane_Spin2": 1760,
+   "CargoPlane_Wheel1": 4408,
+   "CargoPlane_Wheel2": 4408,
+   "CargoPlane_Wheel3": 4408
+  },
+  "tris": 52295,
+  "size": [
+   69.7,
+   43.02,
+   18.75
+  ]
  },
  "Helicopter": {
-  "Helicopter_Body": 5308,
-  "Helicopter_Glass": 1664,
-  "Helicopter_Lights": 544,
-  "Helicopter_Spin1": 1544,
-  "Helicopter_Spin2": 708,
-  "Helicopter_Trim": 9752
+  "objects": {
+   "Helicopter_Body": 5308,
+   "Helicopter_Glass": 1664,
+   "Helicopter_Lights": 544,
+   "Helicopter_Trim": 15920,
+   "Helicopter_Spin1": 1544,
+   "Helicopter_Spin2": 708
+  },
+  "tris": 25688,
+  "size": [
+   26.1,
+   25.5,
+   8.96
+  ]
  },
  "Train": {
   "Train_Body": 3120,
@@ -205,12 +248,20 @@
   "Train_Trim2": 5552
  },
  "Bulldozer": {
-  "Bulldozer_Body": 2296,
-  "Bulldozer_Glass": 432,
-  "Bulldozer_Lights": 648,
-  "Bulldozer_Trim": 18184,
-  "Bulldozer_Trim2": 18498,
-  "Bulldozer_Trim3": 768
+  "objects": {
+   "Bulldozer_Body": 2296,
+   "Bulldozer_Glass": 432,
+   "Bulldozer_Lights": 648,
+   "Bulldozer_Trim": 18184,
+   "Bulldozer_Trim2": 18470,
+   "Bulldozer_Trim3": 1940
+  },
+  "tris": 41970,
+  "size": [
+   15.4,
+   19.5,
+   10.11
+  ]
  },
  "GoKart": {
   "GoKart_Body": 1116,
