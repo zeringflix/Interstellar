@@ -20,6 +20,7 @@ OUT = os.path.join(HERE, "out")
 SPEC = json.load(open(os.path.join(HERE, "vehicles.json")))
 V = SPEC["vehicles"]
 FP_GLASS_ALPHA = 0.12      # in first person the game makes glass ~88% clear
+AMBIENT = 0.3              # stands in for Roblox's Lighting.Ambient on every surface
 
 
 def rbx(v):
@@ -36,8 +37,21 @@ def setup_world(sc):
         sky.sun_elevation, sky.sun_rotation = math.radians(40), math.radians(-30)
     except Exception:
         pass
-    nt.links.new(sky.outputs[0], nt.nodes["Background"].inputs[0])
-    nt.nodes["Background"].inputs[1].default_value = 0.05
+    bg = nt.nodes["Background"]
+    nt.links.new(sky.outputs[0], bg.inputs[0])
+    bg.inputs[1].default_value = 0.05
+    # Roblox lights interiors with an ambient term (Ambient / OutdoorAmbient); a path tracer only gets
+    # light bounced in through the windows. Bounce rays see a soft grey ambient, camera rays the sky.
+    amb = nt.nodes.new("ShaderNodeBackground")
+    amb.inputs[0].default_value = (0.62, 0.64, 0.68, 1)
+    amb.inputs[1].default_value = 0.55
+    lp = nt.nodes.new("ShaderNodeLightPath")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    out = nt.nodes["World Output"]
+    nt.links.new(lp.outputs["Is Camera Ray"], mix.inputs[0])
+    nt.links.new(amb.outputs[0], mix.inputs[1])
+    nt.links.new(bg.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
     sc.world = w
     sun = bpy.data.objects.new("FPSun", bpy.data.lights.new("FPSun", "SUN"))
     sun.data.energy, sun.data.angle = 2.2, math.radians(3)
@@ -87,6 +101,21 @@ def cull_backfaces():
         if not out or not out.inputs["Surface"].links:
             continue
         src = out.inputs["Surface"].links[0].from_socket
+        # Roblox's Ambient term lights every surface directly, even deep inside a cab; a path tracer
+        # only gets light bounced in through the windows, which leaves dark cabins black
+        bsdf = nt.nodes.get("Principled BSDF")
+        if bsdf is not None:
+            amb = nt.nodes.new("ShaderNodeEmission")
+            amb.inputs["Strength"].default_value = AMBIENT
+            col = bsdf.inputs["Base Color"]
+            if col.links:
+                nt.links.new(col.links[0].from_socket, amb.inputs["Color"])
+            else:
+                amb.inputs["Color"].default_value = col.default_value
+            both = nt.nodes.new("ShaderNodeAddShader")
+            nt.links.new(src, both.inputs[0])
+            nt.links.new(amb.outputs[0], both.inputs[1])
+            src = both.outputs[0]
         geo = nt.nodes.new("ShaderNodeNewGeometry")
         clear = nt.nodes.new("ShaderNodeBsdfTransparent")
         mix = nt.nodes.new("ShaderNodeMixShader")
