@@ -426,3 +426,68 @@ def wing(name, span, chord, thick, material, tip_chord=None, n=14):
         return loop
     tc = tip_chord or chord
     return loft(name, [ring(-span / 2, tc), ring(0, chord), ring(span / 2, tc)], material)
+
+
+# ---- shared door / hardware helpers (used by trucks, aircraft and machines) -------------------
+def rounded_rect(u0, v0, u1, v1, rad, per_side=10, per_corner=6):
+    """Closed outline in (u, v) for a door: straight sides and quarter-circle corners."""
+    u0, u1 = min(u0, u1), max(u0, u1)
+    v0, v1 = min(v0, v1), max(v0, v1)
+    rad = min(rad, (u1 - u0) / 2, (v1 - v0) / 2)
+    pts = []
+    corners = [(u1 - rad, v1 - rad, 0), (u0 + rad, v1 - rad, 90), (u0 + rad, v0 + rad, 180), (u1 - rad, v0 + rad, 270)]
+    for cu, cv, a0 in corners:
+        for k in range(per_corner + 1):
+            a = math.radians(a0 + 90 * k / per_corner)
+            pts.append((cu + rad * math.cos(a), cv + rad * math.sin(a)))
+    # densify straight runs so the groove follows curved bodies
+    dense = []
+    for i in range(len(pts)):
+        a, b = pts[i], pts[(i + 1) % len(pts)]
+        n = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.25))
+        for k in range(n):
+            dense.append((a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n))
+    dense.append(dense[0])
+    return dense
+
+
+def groove_path(surf, side, pts_uv, material, radius=0.024, sink=0.004):
+    """Shut-line groove following the body surface along an outline seen from `side`."""
+    pts = []
+    for u, v in pts_uv:
+        loc, nrm = surf.point(side, u, v)
+        if loc is not None:
+            pts.append(loc + nrm * sink)
+    if len(pts) < 2:
+        return None
+    return tube("seam", pts, radius, material, segs=5)
+
+
+def hinges(surf, side, y, zs, material, length=0.45, radius=0.07):
+    """Exposed door hinges on the door's front edge: a knuckle barrel and a leaf on each."""
+    out = []
+    for z in zs:
+        loc, nrm = surf.point(side, y, z)
+        if loc is None:
+            continue
+        out.append(tube("hinge", [loc + nrm * radius + Vector((0, 0, -length / 2)), loc + nrm * radius + Vector((0, 0, length / 2))], radius, material, segs=10))
+        out.append(box("hingeleaf", (0.05, 0.32, length * 0.8), loc + nrm * 0.03 + Vector((0, -0.16 if y > 0 else 0.16, 0)), material, bev=0.015))
+    return out
+
+
+def grab_handle(surf, side, y, z0, z1, material, standoff=0.16, radius=0.045):
+    """Vertical grab handle (truck cabs, buses, aircraft): a bar on two stand-off legs."""
+    a, na = surf.point(side, y, z0)
+    b, nb = surf.point(side, y, z1)
+    if a is None or b is None:
+        return None
+    return tube("grab", [a, a + na * standoff, b + nb * standoff, b], radius, material, segs=8, smooth=3)
+
+
+def latch(surf, side, y, z, material, w=0.32, h=0.12):
+    """Flush panel latch: a small recessed paddle."""
+    loc, nrm = surf.point(side, y, z)
+    if loc is None:
+        return []
+    return [box("latchcup", (0.03, w + 0.08, h + 0.06), loc + nrm * 0.012, M.mat("Pocket", "#121315", rough=0.35), bev=0.02),
+            box("latch", (0.04, w, h), loc + nrm * 0.03, material, bev=0.02)]
