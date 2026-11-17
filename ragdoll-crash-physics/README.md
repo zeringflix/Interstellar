@@ -17,7 +17,7 @@ Rebuild the place from source with `cd roblox && rojo build -o place.rbxl && lun
 |---|---|
 | `roblox/` | The game: a Rojo project (`rojo build -o RagdollCrashPhysics.rbxlx`), 29 Luau modules, tests |
 | `blender/` | Procedural Blender modelling code and the 17 finished vehicle models (`out/*.blend`, `*.glb`, renders) |
-| `docs/` | `vehicles.jpg` (all models, in unlock order), `side_views.jpg` (cars and trucks side-on: windows, doors, sharp truck cab), `map_topdown.png` (map render) |
+| `docs/` | `vehicles.jpg` (all models, in unlock order), `side_views.jpg` (cars and trucks side-on: windows, doors, sharp truck cab), `four_door.jpg` (sedan and police car: side, front and rear three-quarter), `map_topdown.png` (map render) |
 
 ![vehicles](docs/vehicles.jpg)
 

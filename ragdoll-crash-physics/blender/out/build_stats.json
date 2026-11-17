@@ -1,9 +1,9 @@
 {
  "Sedan": {
-  "Sedan_Body": 10408,
-  "Sedan_Glass": 768,
+  "Sedan_Body": 11004,
+  "Sedan_Glass": 856,
   "Sedan_Lights": 4200,
-  "Sedan_Trim": 14784,
+  "Sedan_Trim": 15216,
   "Sedan_Wheel1": 4916,
   "Sedan_Wheel2": 4916,
   "Sedan_Wheel3": 4916,
@@ -20,11 +20,12 @@
   "SportsCar_Wheel4": 5216
  },
  "PoliceCar": {
-  "PoliceCar_Body": 13152,
-  "PoliceCar_Glass": 768,
+  "PoliceCar_Body": 18236,
+  "PoliceCar_Body2": 576,
+  "PoliceCar_Glass": 856,
   "PoliceCar_Lights": 4684,
-  "PoliceCar_Trim": 18488,
-  "PoliceCar_Trim2": 1300,
+  "PoliceCar_Trim": 18464,
+  "PoliceCar_Trim2": 1728,
   "PoliceCar_Wheel1": 5716,
   "PoliceCar_Wheel2": 5716,
   "PoliceCar_Wheel3": 5716,
